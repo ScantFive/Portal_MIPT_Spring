@@ -1,3 +1,25 @@
 spring:
-  application:
-    name: Portal_MIPT
+  datasource:
+    url: jdbc:postgresql://localhost:5432/portal_DB
+    username: postgres
+    password: JavaMTS
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+server:
+  port: 8080
+
+logging:
+  level:
+    com.mipt.advertisement: DEBUG
+    org.springframework.jdbc: DEBUG
+    org.springframework.web: DEBUG
+    org.springframework.transaction: DEBUG

@@ -1,0 +1,13 @@
+DROP TABLE IF EXISTS chats CASCADE;
+
+CREATE TABLE IF NOT EXISTS chats (
+  id     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  owner  UUID REFERENCES users(id) ON DELETE CASCADE,
+  member UUID REFERENCES users(id) ON DELETE CASCADE,
+  last_update TIMESTAMP DEFAULT now(),
+  UNIQUE(owner, member)
+);
+
+INSERT INTO chats (id, owner, member) VALUES
+  (gen_random_uuid(), '11111111-1111-1111-1111-111111111111'::uuid, '22222222-2222-2222-2222-222222222222'::uuid),
+  (gen_random_uuid(), '11111111-1111-1111-1111-111111111111'::uuid, '33333333-3333-3333-3333-333333333333'::uuid);
