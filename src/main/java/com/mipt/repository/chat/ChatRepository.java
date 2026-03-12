@@ -2,6 +2,10 @@ package com.mipt.repository.chat;
 
 import com.mipt.model.chat.Chat;
 import com.mipt.config.DatabaseConfig;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -10,7 +14,10 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-
+@Repository
+@Data
+@Transactional
+@NoArgsConstructor
 public class ChatRepository { 
 
   public Chat create(Chat chat) {

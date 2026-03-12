@@ -5,6 +5,7 @@ import com.mipt.model.chat.Message;
 import com.mipt.repository.chat.ChatRepository;
 import com.mipt.repository.chat.MessageRepository;
 import lombok.NoArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,11 +15,13 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
-@NoArgsConstructor
 @Transactional
 public class MessageService implements ChatService {
+  @Autowired
   ChatRepository chatRepository;
+  @Autowired
   MessageRepository messageRepository;
+
 
   @Override
   public void addChat(Chat chat) {

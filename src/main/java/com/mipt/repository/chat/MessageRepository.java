@@ -2,6 +2,7 @@ package com.mipt.repository.chat;
 
 import com.mipt.model.chat.Message;
 import com.mipt.config.DatabaseConfig;
+import lombok.NoArgsConstructor;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +16,7 @@ import java.util.UUID;
 
 @Repository
 @Transactional
+@NoArgsConstructor
 public class MessageRepository {
 
   public Message create(Message message) {
