@@ -1,4 +1,4 @@
-package com.mipt.advertisement.exception;
+package com.mipt.exception;
 
 import java.util.UUID;
 

@@ -1,9 +1,9 @@
-package com.mipt.advertisement.repository;
+package com.mipt.repository;
 
-import com.mipt.advertisement.model.Advertisement;
-import com.mipt.advertisement.model.AdvertisementStatus;
-import com.mipt.advertisement.model.Category;
-import com.mipt.advertisement.model.Type;
+import com.mipt.model.Advertisement;
+import com.mipt.model.AdvertisementStatus;
+import com.mipt.model.Category;
+import com.mipt.model.Type;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;

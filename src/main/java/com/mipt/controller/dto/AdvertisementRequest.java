@@ -1,6 +1,6 @@
-package com.mipt.advertisement.controller.dto;
+package com.mipt.controller.dto;
 
-import com.mipt.advertisement.model.Type;
+import com.mipt.model.Type;
 import jakarta.validation.constraints.*;
 import java.util.Set;
 import java.util.TreeSet;

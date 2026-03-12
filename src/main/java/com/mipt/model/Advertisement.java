@@ -1,4 +1,4 @@
-package com.mipt.advertisement.model;
+package com.mipt.model;
 
 import java.time.Instant;
 import java.util.Set;

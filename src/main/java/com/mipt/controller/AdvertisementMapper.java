@@ -1,10 +1,10 @@
-package com.mipt.advertisement.controller;
+package com.mipt.controller;
 
-import com.mipt.advertisement.controller.dto.AdvertisementRequest;
-import com.mipt.advertisement.controller.dto.AdvertisementResponse;
-import com.mipt.advertisement.model.Advertisement;
-import com.mipt.advertisement.model.AdvertisementStatus;
-import com.mipt.advertisement.model.Category;
+import com.mipt.controller.dto.AdvertisementRequest;
+import com.mipt.controller.dto.AdvertisementResponse;
+import com.mipt.model.Advertisement;
+import com.mipt.model.AdvertisementStatus;
+import com.mipt.model.Category;
 import java.time.Instant;
 import java.util.TreeSet;
 import java.util.UUID;

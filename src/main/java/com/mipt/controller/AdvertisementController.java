@@ -1,12 +1,12 @@
-package com.mipt.advertisement.controller;
+package com.mipt.controller;
 
-import com.mipt.advertisement.controller.dto.AdvertisementRequest;
-import com.mipt.advertisement.controller.dto.AdvertisementResponse;
-import com.mipt.advertisement.controller.dto.CategoryResponse;
-import com.mipt.advertisement.model.AdvertisementStatus;
-import com.mipt.advertisement.model.Category;
-import com.mipt.advertisement.model.Type;
-import com.mipt.advertisement.service.AdvertisementService;
+import com.mipt.controller.dto.AdvertisementRequest;
+import com.mipt.controller.dto.AdvertisementResponse;
+import com.mipt.controller.dto.CategoryResponse;
+import com.mipt.model.AdvertisementStatus;
+import com.mipt.model.Category;
+import com.mipt.model.Type;
+import com.mipt.service.AdvertisementService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

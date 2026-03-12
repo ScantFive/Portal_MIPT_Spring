@@ -1,4 +1,4 @@
-package com.mipt.advertisement.controller.dto;
+package com.mipt.controller.dto;
 
 import java.time.Instant;
 import java.util.Set;

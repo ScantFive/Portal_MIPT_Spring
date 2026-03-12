@@ -1,14 +1,14 @@
-package com.mipt.advertisement.service;
+package com.mipt.service;
 
-import com.mipt.advertisement.controller.AdvertisementMapper;
-import com.mipt.advertisement.controller.dto.AdvertisementRequest;
-import com.mipt.advertisement.controller.dto.AdvertisementResponse;
-import com.mipt.advertisement.exception.AdvertisementNotFoundException;
-import com.mipt.advertisement.model.Advertisement;
-import com.mipt.advertisement.model.AdvertisementStatus;
-import com.mipt.advertisement.model.Category;
-import com.mipt.advertisement.model.Type;
-import com.mipt.advertisement.repository.AdvertisementRepository;
+import com.mipt.controller.AdvertisementMapper;
+import com.mipt.controller.dto.AdvertisementRequest;
+import com.mipt.controller.dto.AdvertisementResponse;
+import com.mipt.exception.AdvertisementNotFoundException;
+import com.mipt.model.Advertisement;
+import com.mipt.model.AdvertisementStatus;
+import com.mipt.model.Category;
+import com.mipt.model.Type;
+import com.mipt.repository.AdvertisementRepository;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;

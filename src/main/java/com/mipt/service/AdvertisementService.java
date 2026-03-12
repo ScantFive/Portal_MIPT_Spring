@@ -1,10 +1,10 @@
-package com.mipt.advertisement.service;
+package com.mipt.service;
 
-import com.mipt.advertisement.controller.dto.AdvertisementRequest;
-import com.mipt.advertisement.controller.dto.AdvertisementResponse;
-import com.mipt.advertisement.model.AdvertisementStatus;
-import com.mipt.advertisement.model.Category;
-import com.mipt.advertisement.model.Type;
+import com.mipt.controller.dto.AdvertisementRequest;
+import com.mipt.controller.dto.AdvertisementResponse;
+import com.mipt.model.AdvertisementStatus;
+import com.mipt.model.Category;
+import com.mipt.model.Type;
 import java.util.List;
 import java.util.UUID;
 
