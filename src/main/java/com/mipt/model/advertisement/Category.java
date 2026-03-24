@@ -1,11 +1,10 @@
 package com.mipt.model.advertisement;
 
-import lombok.Getter;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import lombok.Getter;
 
 @Getter
 public enum Category {
@@ -271,7 +270,19 @@ public enum Category {
     }
     return null;
   }
+  // Добавьте этот метод в enum Category
+  public static Category fromDisplayName(String displayName) {
+    if (displayName == null || displayName.trim().isEmpty()) {
+      return null;
+    }
 
+    for (Category category : values()) {
+      if (category.getDisplayName().equals(displayName.trim())) {
+        return category;
+      }
+    }
+    return null;
+  }
   @Override
   public String toString() {
     return displayName;

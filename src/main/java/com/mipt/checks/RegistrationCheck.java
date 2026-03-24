@@ -1,4 +1,4 @@
-package com.mipt.service.checks;
+package com.mipt.checks;
 
 import com.mipt.model.user.User;
 import com.mipt.repository.user.UserRepository;

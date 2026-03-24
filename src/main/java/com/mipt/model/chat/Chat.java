@@ -1,18 +1,21 @@
 package com.mipt.model.chat;
 
-import jakarta.persistence.Entity;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Builder.Default;
 import lombok.Data;
 
 import java.time.Instant;
 import java.util.UUID;
+import lombok.NoArgsConstructor;
 
 @Builder
 @Data
-@Entity
+@NoArgsConstructor
+@AllArgsConstructor
 public class Chat {
-  @Builder.Default final UUID id = UUID.randomUUID();
+  @Default final UUID id = UUID.randomUUID();
   UUID ownerId;
   UUID memberId;
-  @Builder.Default Instant lastUpdate = Instant.now();
+  @Default Instant lastUpdate = Instant.now();
 }

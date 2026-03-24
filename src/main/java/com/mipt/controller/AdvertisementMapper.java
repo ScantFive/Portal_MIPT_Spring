@@ -2,9 +2,9 @@ package com.mipt.controller;
 
 import com.mipt.controller.dto.AdvertisementRequest;
 import com.mipt.controller.dto.AdvertisementResponse;
-import com.mipt.model.Advertisement;
-import com.mipt.model.AdvertisementStatus;
-import com.mipt.model.Category;
+import com.mipt.model.advertisement.Advertisement;
+import com.mipt.model.advertisement.AdvertisementStatus;
+import com.mipt.model.advertisement.Category;
 import java.time.Instant;
 import java.util.TreeSet;
 import java.util.UUID;
@@ -24,7 +24,7 @@ public class AdvertisementMapper {
             }
         }
 
-        Advertisement advertisement = Advertisement.builder()
+        return Advertisement.builder()
             .id(UUID.randomUUID())
             .type(request.getType())
             .authorId(request.getAuthorId())
@@ -38,8 +38,6 @@ public class AdvertisementMapper {
             .price(request.getPrice())
             .isFavorite(false)
             .build();
-
-        return advertisement;
     }
 
     public AdvertisementResponse toResponse(Advertisement advertisement) {

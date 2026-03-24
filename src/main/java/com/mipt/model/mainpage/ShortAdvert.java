@@ -11,7 +11,6 @@ import java.util.UUID;
 
 /** Краткая информация об объявлении для отображения в списке. */
 @Data
-@Entity
 @Builder
 public class ShortAdvert {
   private UUID advertId;

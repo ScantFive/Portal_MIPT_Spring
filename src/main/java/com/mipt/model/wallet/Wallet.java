@@ -6,7 +6,6 @@ import lombok.Data;
 
 import java.util.UUID;
 
-@Entity
 @Builder
 @Data
 public class Wallet {

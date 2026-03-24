@@ -2,9 +2,9 @@ package com.mipt.service;
 
 import com.mipt.controller.dto.AdvertisementRequest;
 import com.mipt.controller.dto.AdvertisementResponse;
-import com.mipt.model.AdvertisementStatus;
-import com.mipt.model.Category;
-import com.mipt.model.Type;
+import com.mipt.model.advertisement.AdvertisementStatus;
+import com.mipt.model.advertisement.Category;
+import com.mipt.model.advertisement.Type;
 import java.util.List;
 import java.util.UUID;
 

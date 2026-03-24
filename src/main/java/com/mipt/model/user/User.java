@@ -6,7 +6,6 @@ import lombok.*;
 import java.io.Serializable;
 import java.util.UUID;
 
-@Entity
 @Data
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class User implements Serializable {

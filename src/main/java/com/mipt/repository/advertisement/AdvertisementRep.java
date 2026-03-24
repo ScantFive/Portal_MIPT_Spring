@@ -3,51 +3,46 @@ package com.mipt.repository.advertisement;
 import com.mipt.model.advertisement.Advertisement;
 import com.mipt.model.advertisement.AdvertisementStatus;
 import com.mipt.model.advertisement.Category;
-
-import java.sql.SQLException;
+import com.mipt.model.advertisement.Type;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 
 public interface AdvertisementRep {
 
-  Advertisement create(Advertisement advertisement);
+    Advertisement save(Advertisement advertisement);
 
-  Advertisement publish(Advertisement advertisement);
+    Optional<Advertisement> findById(UUID id);
 
-  Advertisement pause(Advertisement advertisement);
+    List<Advertisement> findAll();
 
-  Optional<Advertisement> findById(UUID id);
+    List<Advertisement> findByAuthorId(UUID authorId);
 
-  List<Advertisement> findByAuthorId(UUID authorId);
+    List<Advertisement> findByStatus(AdvertisementStatus status);
 
-  List<Advertisement> findByStatus(AdvertisementStatus status);
+    List<Advertisement> findByCategory(Category category);
 
-  List<Advertisement> findFavorites();
+    List<Advertisement> findByType(Type type);
 
-  List<Advertisement> findByCategory(Category category);
+    List<Advertisement> findFavorites();
 
-  // Методы для работы с одной категорией
-  Category getCategory(UUID advertisementId);
+    Advertisement update(Advertisement advertisement);
 
-  Advertisement setCategory(UUID advertisementId, Category category);
+    void deleteById(UUID id);
 
-  Set<Category> getAllCategories();
+    Advertisement addPhoto(UUID advertisementId, String photoUrl);
 
-  Advertisement update(Advertisement advertisement);
+    Advertisement removePhoto(UUID advertisementId, String photoUrl);
 
-  void delete(UUID id) throws SQLException;
+    Advertisement updatePrice(UUID advertisementId, Long price);
 
-  Advertisement addPhotoUrl(UUID advertisementId, String photoUrl);
+    Advertisement setFavorite(UUID advertisementId, boolean favorite);
 
-  Advertisement removePhotoUrl(UUID advertisementId, String photoUrl);
+    Advertisement toggleFavorite(UUID advertisementId);
 
-  Advertisement updatePrice(UUID advertisementId, Long price);
+    List<Category> getAllCategories();
 
-  Advertisement toggleFavorite(UUID advertisementId);
+    List<String> getAllCategoryGroups(Type type);
 
-  Advertisement setFavorite(UUID advertisementId, boolean isFavorite);
-
-  void clear();
+    boolean existsById(UUID id);
 }

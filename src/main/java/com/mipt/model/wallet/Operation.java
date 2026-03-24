@@ -10,7 +10,6 @@ import java.util.UUID;
 
 @Builder
 @Data
-@Entity
 public class Operation {
   @Id
   @Builder.Default final UUID id = UUID.randomUUID();

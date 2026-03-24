@@ -17,7 +17,6 @@ import java.util.UUID;
 @Data
 @Builder
 @AllArgsConstructor
-@Entity
 public class PageResponse {
   private UUID userId;
   private SearchQuery search;
