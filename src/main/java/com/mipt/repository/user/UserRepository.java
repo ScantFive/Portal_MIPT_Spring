@@ -34,17 +34,11 @@ public interface UserRepository extends JpaRepository<User, UUID> {
   @Query("UPDATE User u SET u.login = :newLogin, u.updatedAt = CURRENT_TIMESTAMP WHERE u.userID = :userId")
   int updateLogin(@Param("userId") UUID userId, @Param("newLogin") String newLogin);
 
-  /**
-   * Обновление email пользователя
-   */
   @Modifying
   @Transactional
   @Query("UPDATE User u SET u.email = :newEmail, u.updatedAt = CURRENT_TIMESTAMP WHERE u.userID = :userId")
   int updateEmail(@Param("userId") UUID userId, @Param("newEmail") String newEmail);
 
-  /**
-   * Обновление логина и email одновременно
-   */
   @Modifying
   @Transactional
   @Query("UPDATE User u SET u.login = :newLogin, u.email = :newEmail, u.updatedAt = CURRENT_TIMESTAMP WHERE u.userID = :userId")
@@ -52,14 +46,9 @@ public interface UserRepository extends JpaRepository<User, UUID> {
                           @Param("newLogin") String newLogin,
                           @Param("newEmail") String newEmail);
 
-  /**
-   * Безопасное обновление логина с проверкой уникальности
-   * (этот метод только обновляет, уникальность нужно проверять отдельно)
-   */
   @Modifying
   @Transactional
   default int updateLoginSafe(UUID userId, String newLogin) {
-    // Проверяем, что новый логин не занят другим пользователем
     Optional<User> existingUser = findByLogin(newLogin);
     if (existingUser.isPresent() && !existingUser.get().getUserId().equals(userId)) {
       throw new RuntimeException("Login already taken: " + newLogin);
@@ -67,13 +56,9 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     return updateLogin(userId, newLogin);
   }
 
-  /**
-   * Безопасное обновление email с проверкой уникальности
-   */
   @Modifying
   @Transactional
   default int updateEmailSafe(UUID userId, String newEmail) {
-    // Проверяем, что новый email не занят другим пользователем
     Optional<User> existingUser = findByEmail(newEmail);
     if (existingUser.isPresent() && !existingUser.get().getUserId().equals(userId)) {
       throw new RuntimeException("Email already in use: " + newEmail);
