@@ -1,7 +1,6 @@
 package com.mipt.model.mainpage;
 
 import com.mipt.model.search.SearchQuery;
-import jakarta.persistence.Entity;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

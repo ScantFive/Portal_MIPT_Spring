@@ -1,21 +1,23 @@
-package com.mipt.service;
+package com.mipt.service.advertisement;
 
-import com.mipt.controller.AdvertisementMapper;
 import com.mipt.controller.dto.AdvertisementRequest;
 import com.mipt.controller.dto.AdvertisementResponse;
+import com.mipt.controller.AdvertisementMapper;
+import com.mipt.event.AdvertisementEvent;
 import com.mipt.exception.AdvertisementNotFoundException;
 import com.mipt.model.advertisement.Advertisement;
 import com.mipt.model.advertisement.AdvertisementStatus;
 import com.mipt.model.advertisement.Category;
 import com.mipt.model.advertisement.Type;
 import com.mipt.repository.advertisement.AdvertisementRepository;
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -24,6 +26,7 @@ public class AdvertisementServiceImpl implements AdvertisementService {
 
     private final AdvertisementRepository advertisementRepository;
     private final AdvertisementMapper advertisementMapper;
+    private final KafkaEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -34,6 +37,10 @@ public class AdvertisementServiceImpl implements AdvertisementService {
         advertisement.validateToCreate();
 
         Advertisement saved = advertisementRepository.save(advertisement);
+
+        // Отправляем событие о создании
+        eventPublisher.publishEvent(AdvertisementEvent.created(saved));
+
         log.info("Advertisement created with id: {}", saved.getId());
 
         return advertisementMapper.toResponse(saved);
@@ -44,7 +51,7 @@ public class AdvertisementServiceImpl implements AdvertisementService {
         log.debug("Getting advertisement by id: {}", id);
 
         Advertisement advertisement = advertisementRepository.findById(id)
-            .orElseThrow(() -> new AdvertisementNotFoundException(id));
+                .orElseThrow(() -> new AdvertisementNotFoundException(id));
 
         return advertisementMapper.toResponse(advertisement);
     }
@@ -54,8 +61,8 @@ public class AdvertisementServiceImpl implements AdvertisementService {
         log.debug("Getting all advertisements");
 
         return advertisementRepository.findAll().stream()
-            .map(advertisementMapper::toResponse)
-            .collect(Collectors.toList());
+                .map(advertisementMapper::toResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -63,8 +70,8 @@ public class AdvertisementServiceImpl implements AdvertisementService {
         log.debug("Getting advertisements by author: {}", authorId);
 
         return advertisementRepository.findByAuthorId(authorId).stream()
-            .map(advertisementMapper::toResponse)
-            .collect(Collectors.toList());
+                .map(advertisementMapper::toResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -72,22 +79,26 @@ public class AdvertisementServiceImpl implements AdvertisementService {
         log.debug("Getting advertisements by status: {}", status);
 
         return advertisementRepository.findByStatus(status).stream()
-            .map(advertisementMapper::toResponse)
-            .collect(Collectors.toList());
+                .map(advertisementMapper::toResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
     public List<AdvertisementResponse> getAdvertisementsByCategory(String categoryName) {
         log.debug("Getting advertisements by category: {}", categoryName);
 
-        Category category = Category.fromNameSafe(categoryName);
+        Category category = Category.fromDisplayName(categoryName);
         if (category == null) {
-            throw new IllegalArgumentException("Invalid category: " + categoryName);
+            try {
+                category = Category.valueOf(categoryName);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Invalid category: " + categoryName);
+            }
         }
 
         return advertisementRepository.findByCategory(category).stream()
-            .map(advertisementMapper::toResponse)
-            .collect(Collectors.toList());
+                .map(advertisementMapper::toResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -95,8 +106,8 @@ public class AdvertisementServiceImpl implements AdvertisementService {
         log.debug("Getting advertisements by type: {}", type);
 
         return advertisementRepository.findByType(type).stream()
-            .map(advertisementMapper::toResponse)
-            .collect(Collectors.toList());
+                .map(advertisementMapper::toResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -104,8 +115,8 @@ public class AdvertisementServiceImpl implements AdvertisementService {
         log.debug("Getting favorite advertisements");
 
         return advertisementRepository.findFavorites().stream()
-            .map(advertisementMapper::toResponse)
-            .collect(Collectors.toList());
+                .map(advertisementMapper::toResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -114,16 +125,20 @@ public class AdvertisementServiceImpl implements AdvertisementService {
         log.info("Updating advertisement: {}", id);
 
         Advertisement existing = advertisementRepository.findById(id)
-            .orElseThrow(() -> new AdvertisementNotFoundException(id));
+                .orElseThrow(() -> new AdvertisementNotFoundException(id));
 
         // Обновляем поля
         existing.setName(request.getName());
         existing.setDescription(request.getDescription());
         existing.setPrice(request.getPrice());
 
-        Category newCategory = Category.fromNameSafe(request.getCategory());
+        Category newCategory = Category.fromDisplayName(request.getCategory());
         if (newCategory == null) {
-            throw new IllegalArgumentException("Invalid category: " + request.getCategory());
+            try {
+                newCategory = Category.valueOf(request.getCategory());
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Invalid category: " + request.getCategory());
+            }
         }
         existing.setCategory(newCategory);
 
@@ -134,6 +149,10 @@ public class AdvertisementServiceImpl implements AdvertisementService {
         existing.validateToCreate();
 
         Advertisement updated = advertisementRepository.update(existing);
+
+        // Отправляем событие об обновлении
+        eventPublisher.publishEvent(AdvertisementEvent.updated(updated));
+
         log.info("Advertisement updated: {}", id);
 
         return advertisementMapper.toResponse(updated);
@@ -145,12 +164,15 @@ public class AdvertisementServiceImpl implements AdvertisementService {
         log.info("Publishing advertisement: {}", id);
 
         Advertisement advertisement = advertisementRepository.findById(id)
-            .orElseThrow(() -> new AdvertisementNotFoundException(id));
+                .orElseThrow(() -> new AdvertisementNotFoundException(id));
 
         advertisement.validateToPublish();
         advertisement.setStatus(AdvertisementStatus.ACTIVE);
 
         Advertisement updated = advertisementRepository.update(advertisement);
+
+        // Отправляем событие о публикации
+        eventPublisher.publishEvent(AdvertisementEvent.published(updated));
 
         return advertisementMapper.toResponse(updated);
     }
@@ -161,16 +183,19 @@ public class AdvertisementServiceImpl implements AdvertisementService {
         log.info("Pausing advertisement: {}", id);
 
         Advertisement advertisement = advertisementRepository.findById(id)
-            .orElseThrow(() -> new AdvertisementNotFoundException(id));
+                .orElseThrow(() -> new AdvertisementNotFoundException(id));
 
         if (advertisement.getStatus() != AdvertisementStatus.ACTIVE) {
             throw new IllegalStateException(
-                "Can only pause active advertisements. Current status: " + advertisement.getStatus()
+                    "Can only pause active advertisements. Current status: " + advertisement.getStatus()
             );
         }
 
         advertisement.setStatus(AdvertisementStatus.PAUSED);
         Advertisement updated = advertisementRepository.update(advertisement);
+
+        // Отправляем событие о приостановке
+        eventPublisher.publishEvent(AdvertisementEvent.paused(updated));
 
         return advertisementMapper.toResponse(updated);
     }
@@ -180,9 +205,11 @@ public class AdvertisementServiceImpl implements AdvertisementService {
     public void deleteAdvertisement(UUID id) {
         log.info("Deleting advertisement: {}", id);
 
-        if (!advertisementRepository.existsById(id)) {
-            throw new AdvertisementNotFoundException(id);
-        }
+        Advertisement advertisement = advertisementRepository.findById(id)
+                .orElseThrow(() -> new AdvertisementNotFoundException(id));
+
+        // Отправляем событие об удалении
+        eventPublisher.publishEvent(AdvertisementEvent.deleted(advertisement));
 
         advertisementRepository.deleteById(id);
     }
@@ -192,11 +219,15 @@ public class AdvertisementServiceImpl implements AdvertisementService {
     public AdvertisementResponse addPhoto(UUID id, String photoUrl) {
         log.debug("Adding photo to advertisement: {}", id);
 
-        if (!advertisementRepository.existsById(id)) {
-            throw new AdvertisementNotFoundException(id);
-        }
+        Advertisement advertisement = advertisementRepository.findById(id)
+                .orElseThrow(() -> new AdvertisementNotFoundException(id));
 
         Advertisement updated = advertisementRepository.addPhoto(id, photoUrl);
+
+        // Отправляем событие о добавлении фото
+        eventPublisher.publishEvent(AdvertisementEvent.photoAdded(
+                id, advertisement.getName(), advertisement.getAuthorId(), photoUrl));
+
         return advertisementMapper.toResponse(updated);
     }
 
@@ -205,11 +236,15 @@ public class AdvertisementServiceImpl implements AdvertisementService {
     public AdvertisementResponse removePhoto(UUID id, String photoUrl) {
         log.debug("Removing photo from advertisement: {}", id);
 
-        if (!advertisementRepository.existsById(id)) {
-            throw new AdvertisementNotFoundException(id);
-        }
+        Advertisement advertisement = advertisementRepository.findById(id)
+                .orElseThrow(() -> new AdvertisementNotFoundException(id));
 
         Advertisement updated = advertisementRepository.removePhoto(id, photoUrl);
+
+        // Отправляем событие об удалении фото
+        eventPublisher.publishEvent(AdvertisementEvent.photoRemoved(
+                id, advertisement.getName(), advertisement.getAuthorId(), photoUrl));
+
         return advertisementMapper.toResponse(updated);
     }
 
@@ -218,15 +253,21 @@ public class AdvertisementServiceImpl implements AdvertisementService {
     public AdvertisementResponse updatePrice(UUID id, Long price) {
         log.debug("Updating price for advertisement: {}", id);
 
-        if (!advertisementRepository.existsById(id)) {
-            throw new AdvertisementNotFoundException(id);
-        }
+        Advertisement advertisement = advertisementRepository.findById(id)
+                .orElseThrow(() -> new AdvertisementNotFoundException(id));
+
+        Long oldPrice = advertisement.getPrice();
 
         if (price != null && price <= 0) {
             throw new IllegalArgumentException("Price must be positive");
         }
 
         Advertisement updated = advertisementRepository.updatePrice(id, price);
+
+        // Отправляем событие об изменении цены
+        eventPublisher.publishEvent(AdvertisementEvent.priceChanged(
+                id, advertisement.getName(), advertisement.getAuthorId(), oldPrice, price));
+
         return advertisementMapper.toResponse(updated);
     }
 
@@ -235,11 +276,15 @@ public class AdvertisementServiceImpl implements AdvertisementService {
     public AdvertisementResponse setFavorite(UUID id, boolean favorite) {
         log.debug("Setting favorite={} for advertisement: {}", favorite, id);
 
-        if (!advertisementRepository.existsById(id)) {
-            throw new AdvertisementNotFoundException(id);
-        }
+        Advertisement advertisement = advertisementRepository.findById(id)
+                .orElseThrow(() -> new AdvertisementNotFoundException(id));
 
         Advertisement updated = advertisementRepository.setFavorite(id, favorite);
+
+        // Отправляем событие об изменении избранного
+        eventPublisher.publishEvent(AdvertisementEvent.favoriteToggled(
+                id, advertisement.getName(), advertisement.getAuthorId(), favorite));
+
         return advertisementMapper.toResponse(updated);
     }
 
@@ -248,11 +293,15 @@ public class AdvertisementServiceImpl implements AdvertisementService {
     public AdvertisementResponse toggleFavorite(UUID id) {
         log.debug("Toggling favorite for advertisement: {}", id);
 
-        if (!advertisementRepository.existsById(id)) {
-            throw new AdvertisementNotFoundException(id);
-        }
+        Advertisement advertisement = advertisementRepository.findById(id)
+                .orElseThrow(() -> new AdvertisementNotFoundException(id));
 
         Advertisement updated = advertisementRepository.toggleFavorite(id);
+
+        // Отправляем событие о переключении избранного
+        eventPublisher.publishEvent(AdvertisementEvent.favoriteToggled(
+                id, advertisement.getName(), advertisement.getAuthorId(), updated.isFavorite()));
+
         return advertisementMapper.toResponse(updated);
     }
 

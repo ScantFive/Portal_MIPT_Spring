@@ -6,7 +6,7 @@ import com.mipt.controller.dto.CategoryResponse;
 import com.mipt.model.advertisement.AdvertisementStatus;
 import com.mipt.model.advertisement.Category;
 import com.mipt.model.advertisement.Type;
-import com.mipt.service.AdvertisementService;
+import com.mipt.service.advertisement.AdvertisementService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

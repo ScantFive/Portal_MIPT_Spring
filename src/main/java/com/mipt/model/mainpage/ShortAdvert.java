@@ -1,6 +1,5 @@
 package com.mipt.model.mainpage;
 
-import jakarta.persistence.Entity;
 import lombok.Builder;
 import lombok.Data;
 

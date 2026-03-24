@@ -1,4 +1,4 @@
-package com.mipt.service;
+package com.mipt.service.advertisement;
 
 import com.mipt.controller.dto.AdvertisementRequest;
 import com.mipt.controller.dto.AdvertisementResponse;

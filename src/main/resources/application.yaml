@@ -14,6 +14,22 @@ spring:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.type.mapping: event:com.mipt.event.AdvertisementEvent
+    consumer:
+      group-id: advertisement-service
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+        spring.json.type.mapping: event:com.mipt.advertisement.event.AdvertisementEvent
+      auto-offset-reset: earliest
+
 server:
   port: 8080
 
@@ -22,4 +38,9 @@ logging:
     com.mipt.advertisement: DEBUG
     org.springframework.jdbc: DEBUG
     org.springframework.web: DEBUG
+    org.springframework.kafka: DEBUG
     org.springframework.transaction: DEBUG
+
+kafka:
+  topic:
+    advertisement-events: advertisement-events
