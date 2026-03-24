@@ -13,7 +13,7 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 @Transactional
-public class UserAuthentification implements Authentication {
+public class UserAuthentification implements Authentification {
   private final UserRepository userRepository;
 
   @Override
@@ -71,33 +71,6 @@ public class UserAuthentification implements Authentication {
 
     log.info("Password successfully changed for user: {}", user.getLogin());
     System.out.println("Пароль успешно изменён");
-  }
-
-  @Transactional
-  public boolean changePassword(User user, String oldPassword, String newPassword, String confirmPassword) {
-    log.debug("Password change requested for user: {}", user.getLogin());
-
-    if (!user.checkPassword(oldPassword)) {
-      log.warn("Password change failed - wrong old password for: {}", user.getLogin());
-      throw new RuntimeException("Неверный текущий пароль");
-    }
-
-    if (!newPassword.equals(confirmPassword)) {
-      log.warn("Password change failed - new passwords don't match for: {}", user.getLogin());
-      throw new RuntimeException("Новые пароли не совпадают");
-    }
-
-    if (newPassword.length() < 6) {
-      log.warn("Password change failed - new password too short for: {}", user.getLogin());
-      throw new RuntimeException("Новый пароль должен содержать минимум 6 символов");
-    }
-
-    user.changePassword(newPassword, confirmPassword);
-
-    userRepository.save(user);
-
-    log.info("Password successfully changed for user: {}", user.getLogin());
-    return true;
   }
 
   @Transactional(readOnly = true)

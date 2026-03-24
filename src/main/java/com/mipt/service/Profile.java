@@ -8,17 +8,17 @@ import java.util.UUID;
 
 public interface Profile {
 
-  User getInfo();
+  User getInfo(UUID userId);
 
-  void editLogin(String newLogin);
+  void editLogin(UUID userId, String newLogin);
 
-  void editEmail(String email, String newEmail);
+  void editEmail(UUID userId, String newEmail);
 
-  void editPassword(String password, String newPassword, String confirmPassword);
+  void editPassword(UUID userId, String oldPassword, String newPassword, String confirmPassword);
 
-  long getTokensAmount(UUID userID);
+  long getTokensAmount(UUID userId);
 
-  List<Operation> dealHistory(UUID userID); // когда появится класс сделка, заменю на неё
+  List<Operation> dealHistory(UUID userId);
 
   void logOut();
 }
