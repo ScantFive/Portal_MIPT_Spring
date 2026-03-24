@@ -1,142 +1,83 @@
 package com.mipt.repository.user;
 
 import com.mipt.model.user.User;
-import com.mipt.config.DatabaseConfig;
-import jakarta.transaction.Transactional;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-
-import java.sql.*;
-import java.util.*;
+import org.springframework.transaction.annotation.Transactional;
+import java.util.Optional;
+import java.util.UUID;
 
 @Repository
-@Transactional
-public class UserRepository {
+public interface UserRepository extends JpaRepository<User, UUID> {
 
-  public void save(User user) {
-    String sql = """
-        INSERT INTO users (id, login, email, hashed_password, activated)
-        VALUES (?, ?, ?, ?, ?)
-        """;
-    try (Connection conn = DatabaseConfig.getConnection();
-         PreparedStatement stmt = conn.prepareStatement(sql)) {
-      stmt.setObject(1, user.getUserID());
-      stmt.setString(2, user.getLogin());
-      stmt.setString(3, user.getEmail().toLowerCase().trim());
-      stmt.setString(4, user.getHashedPassword());
-      stmt.setBoolean(5, user.getActivated());
-      stmt.executeUpdate();
-    } catch (SQLException e) {
-      throw new RuntimeException("Ошибка сохранения пользователя", e);
+  Optional<User> findByEmail(String email);
+  Optional<User> findByLogin(String login);
+  boolean existsByEmail(String email);
+  boolean existsByLogin(String login);
+
+  @Modifying
+  @Transactional
+  @Query("UPDATE User u SET u.activated = true WHERE u.userID = :userId")
+  int activateUser(@Param("userId") UUID userId);
+
+  @Modifying
+  @Transactional
+  @Query("UPDATE User u SET u.hashedPassword = :newPassword WHERE u.userID = :userId")
+  int updatePassword(@Param("userId") UUID userId, @Param("newPassword") String newPassword);
+
+
+  @Modifying
+  @Transactional
+  @Query("UPDATE User u SET u.login = :newLogin, u.updatedAt = CURRENT_TIMESTAMP WHERE u.userID = :userId")
+  int updateLogin(@Param("userId") UUID userId, @Param("newLogin") String newLogin);
+
+  /**
+   * Обновление email пользователя
+   */
+  @Modifying
+  @Transactional
+  @Query("UPDATE User u SET u.email = :newEmail, u.updatedAt = CURRENT_TIMESTAMP WHERE u.userID = :userId")
+  int updateEmail(@Param("userId") UUID userId, @Param("newEmail") String newEmail);
+
+  /**
+   * Обновление логина и email одновременно
+   */
+  @Modifying
+  @Transactional
+  @Query("UPDATE User u SET u.login = :newLogin, u.email = :newEmail, u.updatedAt = CURRENT_TIMESTAMP WHERE u.userID = :userId")
+  int updateLoginAndEmail(@Param("userId") UUID userId,
+                          @Param("newLogin") String newLogin,
+                          @Param("newEmail") String newEmail);
+
+  /**
+   * Безопасное обновление логина с проверкой уникальности
+   * (этот метод только обновляет, уникальность нужно проверять отдельно)
+   */
+  @Modifying
+  @Transactional
+  default int updateLoginSafe(UUID userId, String newLogin) {
+    // Проверяем, что новый логин не занят другим пользователем
+    Optional<User> existingUser = findByLogin(newLogin);
+    if (existingUser.isPresent() && !existingUser.get().getUserId().equals(userId)) {
+      throw new RuntimeException("Login already taken: " + newLogin);
     }
+    return updateLogin(userId, newLogin);
   }
 
-  public boolean existsByEmail(String email) {
-    String sql = "SELECT 1 FROM users WHERE email = ?";
-    try (Connection conn = DatabaseConfig.getConnection();
-         PreparedStatement stmt = conn.prepareStatement(sql)) {
-      stmt.setString(1, email.toLowerCase().trim());
-      try (ResultSet rs = stmt.executeQuery()) {
-        return rs.next();
-      }
-    } catch (SQLException e) {
-      throw new RuntimeException("Ошибка проверки email", e);
+  /**
+   * Безопасное обновление email с проверкой уникальности
+   */
+  @Modifying
+  @Transactional
+  default int updateEmailSafe(UUID userId, String newEmail) {
+    // Проверяем, что новый email не занят другим пользователем
+    Optional<User> existingUser = findByEmail(newEmail);
+    if (existingUser.isPresent() && !existingUser.get().getUserId().equals(userId)) {
+      throw new RuntimeException("Email already in use: " + newEmail);
     }
-  }
-
-  public Optional<User> findByEmail(String email) {
-    String sql = "SELECT * FROM users WHERE email = ?";
-    try (Connection conn = DatabaseConfig.getConnection();
-         PreparedStatement stmt = conn.prepareStatement(sql)) {
-      stmt.setString(1, email.toLowerCase().trim());
-      try (ResultSet rs = stmt.executeQuery()) {
-        if (rs.next()) {
-          return Optional.of(mapRowToUser(rs));
-        }
-        return Optional.empty();
-      }
-    } catch (SQLException e) {
-      throw new RuntimeException("Ошибка поиска по email", e);
-    }
-  }
-
-  public Optional<User> findById(UUID id) {
-    String sql = "SELECT * FROM users WHERE id = ?";
-    try (Connection conn = DatabaseConfig.getConnection();
-         PreparedStatement stmt = conn.prepareStatement(sql)) {
-      stmt.setObject(1, id);
-      try (ResultSet rs = stmt.executeQuery()) {
-        if (rs.next()) {
-          return Optional.of(mapRowToUser(rs));
-        }
-        return Optional.empty();
-      }
-    } catch (SQLException e) {
-      throw new RuntimeException("Ошибка поиска по ID", e);
-    }
-  }
-
-  public void update(User user) {
-    String sql = """
-        UPDATE users
-        SET login = ?, email = ?, hashed_password = ?, activated = ?
-        WHERE id = ?
-        """;
-    try (Connection conn = DatabaseConfig.getConnection();
-         PreparedStatement stmt = conn.prepareStatement(sql)) {
-      stmt.setString(1, user.getLogin());
-      stmt.setString(2, user.getEmail().toLowerCase().trim());
-      stmt.setString(3, user.getHashedPassword());
-      stmt.setBoolean(4, user.getActivated());
-      stmt.setObject(5, user.getUserID());
-      stmt.executeUpdate();
-    } catch (SQLException e) {
-      throw new RuntimeException("Ошибка обновления пользователя", e);
-    }
-  }
-
-  public List<User> findAll() {
-    String sql = "SELECT * FROM users";
-    try (Connection conn = DatabaseConfig.getConnection();
-         Statement stmt = conn.createStatement();
-         ResultSet rs = stmt.executeQuery(sql)) {
-      List<User> users = new ArrayList<>();
-      while (rs.next()) {
-        users.add(mapRowToUser(rs));
-      }
-      return users;
-    } catch (SQLException e) {
-      throw new RuntimeException("Ошибка получения всех пользователей", e);
-    }
-  }
-
-  public boolean deleteById(UUID id) {
-    String sql = "DELETE FROM users WHERE id = ?";
-    try (Connection conn = DatabaseConfig.getConnection();
-         PreparedStatement stmt = conn.prepareStatement(sql)) {
-      stmt.setObject(1, id);
-      return stmt.executeUpdate() > 0;
-    } catch (SQLException e) {
-      throw new RuntimeException("Ошибка удаления по ID: " + id, e);
-    }
-  }
-
-  public void clear() {
-    try (Connection conn = DatabaseConfig.getConnection();
-         Statement stmt = conn.createStatement()) {
-      stmt.execute("DELETE FROM users");
-    } catch (SQLException e) {
-      throw new RuntimeException("Ошибка очистки таблицы", e);
-    }
-  }
-
-  // Вспомогательный метод: ResultSet → User
-  private User mapRowToUser(ResultSet rs) throws SQLException {
-    UUID id = (UUID) rs.getObject("id");
-    String login = rs.getString("login");
-    String email = rs.getString("email");
-    String passwordHash = rs.getString("hashed_password");
-    boolean activated = rs.getBoolean("activated");
-
-    return User.fromDatabase(id, login, email, passwordHash, activated);
+    return updateEmail(userId, newEmail);
   }
 }
