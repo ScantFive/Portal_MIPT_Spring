@@ -21,10 +21,10 @@ public class Operation {
   @Builder.Default
   private UUID id = UUID.randomUUID();
 
-  @Column(name = "client_id", nullable = false)
+  @Column(name = "client", nullable = false)
   private UUID clientId;
 
-  @Column(name = "performer_id", nullable = false)
+  @Column(name = "performer", nullable = false)
   private UUID performerId;
 
   @Column(name = "amount", nullable = false)

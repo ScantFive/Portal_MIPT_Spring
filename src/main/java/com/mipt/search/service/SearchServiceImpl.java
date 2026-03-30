@@ -1,14 +1,27 @@
 package com.mipt.search.service;
 
 import com.mipt.mainpage.model.ShortAdvert;
-import com.mipt.search.model.*;
+import com.mipt.search.model.SearchHistory;
+import com.mipt.search.model.SearchQuery;
+import com.mipt.search.model.SearchSuggestion;
+import com.mipt.search.model.SearchType;
 import com.mipt.search.repository.SearchHistoryRepository;
 import com.mipt.search.repository.SearchRepository;
 import com.mipt.search.repository.SearchSuggestionRepository;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-/** Реализация сервиса поиска объявлений. */
+@Service
+@RequiredArgsConstructor
+@Transactional
 public class SearchServiceImpl implements SearchService {
 
   @Override
@@ -19,22 +32,13 @@ public class SearchServiceImpl implements SearchService {
   @Override
   public List<ShortAdvert> search(long limit, long offset, SearchQuery query, UUID userId) {
     SearchQuery effectiveQuery = Optional.ofNullable(query).orElseGet(SearchQuery::new);
-    List<ShortAdvert> results = SearchRepository.getAdverts(limit, offset, effectiveQuery, userId);
+    List<ShortAdvert> adverts = SearchRepository.getAdverts(limit, offset, effectiveQuery, userId);
 
-    // Сохраняем запрос в историю, если пользователь авторизован и запрос не пустой
     if (userId != null && isSignificantQuery(effectiveQuery)) {
-      SearchHistoryRepository.saveSearchHistory(userId, effectiveQuery, results.size());
+      SearchHistoryRepository.saveSearchHistory(userId, effectiveQuery, adverts.size());
     }
 
-    return results;
-  }
-
-  /** Проверяет, является ли запрос значимым для сохранения в историю */
-  private boolean isSignificantQuery(SearchQuery query) {
-    return (query.getSearchText() != null && !query.getSearchText().trim().isEmpty())
-        || query.getType() != null
-        || (query.getCategory() != null && !query.getCategory().isEmpty())
-        || (query.getFilters() != null && !query.getFilters().isEmpty());
+    return adverts;
   }
 
   @Override
@@ -54,7 +58,7 @@ public class SearchServiceImpl implements SearchService {
   @Override
   public List<ShortAdvert> searchByCategory(String categoryTitle, long limit, long offset) {
     SearchQuery query = new SearchQuery();
-    SearchCategory category = new SearchCategory();
+    com.mipt.search.model.SearchCategory category = new com.mipt.search.model.SearchCategory();
     category.setCategoryTitle(categoryTitle);
     category.setActive(true);
     query.setCategory(Collections.singletonList(category));
@@ -62,26 +66,20 @@ public class SearchServiceImpl implements SearchService {
   }
 
   @Override
-  public List<ShortAdvert> searchFavorites(
-      UUID userId, SearchQuery query, long limit, long offset) {
+  public List<ShortAdvert> searchFavorites(UUID userId, SearchQuery query, long limit, long offset) {
     if (userId == null) {
       throw new IllegalArgumentException("User ID не может быть null для поиска в избранном");
     }
 
     SearchQuery effectiveQuery = Optional.ofNullable(query).orElseGet(SearchQuery::new);
+    List<ShortAdvert> adverts = SearchRepository.getFavoriteAdverts(userId, limit, offset, effectiveQuery);
 
-    List<ShortAdvert> results =
-        SearchRepository.getFavoriteAdverts(userId, limit, offset, effectiveQuery);
-
-    // Сохраняем поиск в избранном в историю
     if (isSignificantQuery(effectiveQuery)) {
-      SearchHistoryRepository.saveSearchHistory(userId, effectiveQuery, results.size());
+      SearchHistoryRepository.saveSearchHistory(userId, effectiveQuery, adverts.size());
     }
 
-    return results;
+    return adverts;
   }
-
-  // Методы работы с историей поиска
 
   @Override
   public List<SearchHistory> getUserSearchHistory(UUID userId, int limit) {
@@ -123,47 +121,27 @@ public class SearchServiceImpl implements SearchService {
     SearchHistoryRepository.deleteSearchHistoryEntry(historyId, userId);
   }
 
-  // Методы работы с контекстными подсказками
-
   @Override
   public List<SearchSuggestion> getSearchSuggestions(String prefix, UUID userId, int limit) {
     List<SearchSuggestion> allSuggestions = new ArrayList<>();
 
-    // Определяем количество подсказок каждого типа
-    int historyLimit = limit / 4;
-    int autocompleteLimit = limit / 3;
-    int popularLimit = limit / 4;
-    int trendingLimit = limit / 4;
+    int historyLimit = Math.max(1, limit / 4);
+    int autocompleteLimit = Math.max(1, limit / 3);
+    int popularLimit = Math.max(1, limit / 4);
+    int trendingLimit = Math.max(1, limit / 4);
 
-    // Собираем подсказки из разных источников
     if (userId != null) {
-      // Для авторизованных пользователей добавляем персональные подсказки
-      List<SearchSuggestion> historySuggestions =
-          getHistorySuggestions(userId, prefix, historyLimit);
-      allSuggestions.addAll(historySuggestions);
-
-      // Добавляем персонализированные подсказки
-      List<SearchSuggestion> personalizedSuggestions =
-          getPersonalizedSuggestions(userId, prefix, Math.max(1, historyLimit / 2));
-      allSuggestions.addAll(personalizedSuggestions);
+      allSuggestions.addAll(getHistorySuggestions(userId, prefix, historyLimit));
+      allSuggestions.addAll(getPersonalizedSuggestions(userId, prefix, Math.max(1, historyLimit / 2)));
     }
 
-    // Автодополнение из объявлений (для всех пользователей)
     if (prefix != null && !prefix.trim().isEmpty()) {
-      List<SearchSuggestion> autocompleteSuggestions =
-          getAutocompleteSuggestions(prefix, autocompleteLimit);
-      allSuggestions.addAll(autocompleteSuggestions);
+      allSuggestions.addAll(getAutocompleteSuggestions(prefix, autocompleteLimit));
     }
 
-    // Популярные подсказки
-    List<SearchSuggestion> popularSuggestions = getPopularSuggestions(prefix, popularLimit);
-    allSuggestions.addAll(popularSuggestions);
+    allSuggestions.addAll(getPopularSuggestions(prefix, popularLimit));
+    allSuggestions.addAll(getTrendingSuggestions(prefix, trendingLimit));
 
-    // Трендовые подсказки
-    List<SearchSuggestion> trendingSuggestions = getTrendingSuggestions(prefix, trendingLimit);
-    allSuggestions.addAll(trendingSuggestions);
-
-    // Удаляем дубликаты, оставляя подсказку с наивысшей релевантностью
     Map<String, SearchSuggestion> uniqueSuggestions = new LinkedHashMap<>();
     for (SearchSuggestion suggestion : allSuggestions) {
       String key = suggestion.getText().toLowerCase().trim();
@@ -175,16 +153,14 @@ public class SearchServiceImpl implements SearchService {
       }
     }
 
-    // Сортируем по релевантности и возвращаем топ результаты
     return uniqueSuggestions.values().stream()
-        .sorted(
-            (s1, s2) -> {
-              Double r1 = s1.getRelevance() != null ? s1.getRelevance() : 0.0;
-              Double r2 = s2.getRelevance() != null ? s2.getRelevance() : 0.0;
-              return Double.compare(r2, r1); // Сортировка по убыванию
-            })
+        .sorted((s1, s2) -> {
+          double r1 = s1.getRelevance() == null ? 0.0 : s1.getRelevance();
+          double r2 = s2.getRelevance() == null ? 0.0 : s2.getRelevance();
+          return Double.compare(r2, r1);
+        })
         .limit(limit)
-        .collect(Collectors.toList());
+        .toList();
   }
 
   @Override
@@ -210,7 +186,6 @@ public class SearchServiceImpl implements SearchService {
 
   @Override
   public List<SearchSuggestion> getTrendingSuggestions(String prefix, int limit) {
-    // По умолчанию анализируем последние 7 дней
     return SearchSuggestionRepository.getTrendingSuggestions(prefix, 7, limit);
   }
 
@@ -220,5 +195,12 @@ public class SearchServiceImpl implements SearchService {
       return Collections.emptyList();
     }
     return SearchSuggestionRepository.getPersonalizedSuggestions(userId, prefix, limit);
+  }
+
+  private boolean isSignificantQuery(SearchQuery query) {
+    return (query.getSearchText() != null && !query.getSearchText().trim().isEmpty())
+        || query.getType() != null
+        || (query.getCategory() != null && !query.getCategory().isEmpty())
+        || (query.getFilters() != null && !query.getFilters().isEmpty());
   }
 }

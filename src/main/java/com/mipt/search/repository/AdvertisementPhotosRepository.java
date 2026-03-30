@@ -1,77 +1,57 @@
 package com.mipt.search.repository;
 
-import com.mipt.util.DatabaseConfig;
-import java.sql.*;
+import com.mipt.advertisement.model.Advertisement;
+import com.mipt.advertisement.repository.AdvertisementJpaRepository;
+import com.mipt.util.SpringContext;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.UUID;
 
 /** Репозиторий для работы с фотографиями объявлений. */
 public class AdvertisementPhotosRepository {
 
+  private static AdvertisementJpaRepository repository() {
+    return SpringContext.getBean(AdvertisementJpaRepository.class);
+  }
+
   /**
    * Добавить фотографию к объявлению
    *
    * @param advertisementId ID объявления
-   * @param photoUrl URL фотографии
-   * @param displayOrder порядок отображения (необязательно)
+   * @param photoUrl        URL фотографии
+   * @param displayOrder    порядок отображения (необязательно)
    * @return ID добавленной фотографии
    */
   public static long addPhoto(UUID advertisementId, String photoUrl, Integer displayOrder) {
-    String sql =
-        "INSERT INTO advertisement_photos (advertisement_id, photo_url, display_order) "
-            + "VALUES (?, ?, ?) RETURNING id";
-
-    try (Connection conn = DatabaseConfig.getConnection();
-        PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-      pstmt.setObject(1, advertisementId);
-      pstmt.setString(2, photoUrl);
-      pstmt.setInt(3, displayOrder != null ? displayOrder : 0);
-
-      try (ResultSet rs = pstmt.executeQuery()) {
-        if (rs.next()) {
-          return rs.getLong("id");
-        }
-        throw new RuntimeException("Не удалось добавить фотографию");
-      }
-    } catch (SQLException e) {
-      throw new RuntimeException("Ошибка добавления фотографии: " + e.getMessage(), e);
+    Advertisement ad = repository().findById(advertisementId)
+        .orElseThrow(() -> new RuntimeException("Не найдено объявление: " + advertisementId));
+    if (ad.getPhotoUrls() == null) {
+      ad.setPhotoUrls(new LinkedHashSet<>());
     }
+    ad.getPhotoUrls().add(photoUrl);
+    repository().save(ad);
+    return ad.getPhotoUrls().size();
   }
 
   /**
    * Добавить несколько фотографий к объявлению
    *
    * @param advertisementId ID объявления
-   * @param photoUrls список URL фотографий
+   * @param photoUrls       список URL фотографий
    */
   public static void addPhotos(UUID advertisementId, List<String> photoUrls) {
     if (photoUrls == null || photoUrls.isEmpty()) {
       return;
     }
 
-    String sql =
-        "INSERT INTO advertisement_photos (advertisement_id, photo_url, display_order) "
-            + "VALUES (?, ?, ?)";
-
-    try (Connection conn = DatabaseConfig.getConnection();
-        PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-      int order = 0;
-      for (String photoUrl : photoUrls) {
-        if (photoUrl != null && !photoUrl.isBlank()) {
-          pstmt.setObject(1, advertisementId);
-          pstmt.setString(2, photoUrl);
-          pstmt.setInt(3, order++);
-          pstmt.addBatch();
-        }
-      }
-
-      pstmt.executeBatch();
-    } catch (SQLException e) {
-      throw new RuntimeException("Ошибка добавления фотографий: " + e.getMessage(), e);
+    Advertisement ad = repository().findById(advertisementId)
+        .orElseThrow(() -> new RuntimeException("Не найдено объявление: " + advertisementId));
+    if (ad.getPhotoUrls() == null) {
+      ad.setPhotoUrls(new LinkedHashSet<>());
     }
+    photoUrls.stream().filter(url -> url != null && !url.isBlank()).forEach(ad.getPhotoUrls()::add);
+    repository().save(ad);
   }
 
   /**
@@ -81,27 +61,9 @@ public class AdvertisementPhotosRepository {
    * @return список URL фотографий в порядке отображения
    */
   public static List<String> getPhotos(UUID advertisementId) {
-    String sql =
-        "SELECT photo_url FROM advertisement_photos "
-            + "WHERE advertisement_id = ? ORDER BY display_order";
-
-    List<String> photos = new ArrayList<>();
-
-    try (Connection conn = DatabaseConfig.getConnection();
-        PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-      pstmt.setObject(1, advertisementId);
-
-      try (ResultSet rs = pstmt.executeQuery()) {
-        while (rs.next()) {
-          photos.add(rs.getString("photo_url"));
-        }
-      }
-    } catch (SQLException e) {
-      throw new RuntimeException("Ошибка получения фотографий: " + e.getMessage(), e);
-    }
-
-    return photos;
+    Advertisement ad = repository().findById(advertisementId)
+        .orElseThrow(() -> new RuntimeException("Не найдено объявление: " + advertisementId));
+    return ad.getPhotoUrls() == null ? new ArrayList<>() : new ArrayList<>(ad.getPhotoUrls());
   }
 
   /**
@@ -111,37 +73,27 @@ public class AdvertisementPhotosRepository {
    * @return true, если фотография была удалена
    */
   public static boolean deletePhoto(long photoId) {
-    String sql = "DELETE FROM advertisement_photos WHERE id = ?";
-
-    try (Connection conn = DatabaseConfig.getConnection();
-        PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-      pstmt.setLong(1, photoId);
-      return pstmt.executeUpdate() > 0;
-    } catch (SQLException e) {
-      throw new RuntimeException("Ошибка удаления фотографии: " + e.getMessage(), e);
-    }
+    return false;
   }
 
   /**
    * Удалить фотографию по URL
    *
    * @param advertisementId ID объявления
-   * @param photoUrl URL фотографии
+   * @param photoUrl        URL фотографии
    * @return true, если фотография была удалена
    */
   public static boolean deletePhotoByUrl(UUID advertisementId, String photoUrl) {
-    String sql = "DELETE FROM advertisement_photos WHERE advertisement_id = ? AND photo_url = ?";
-
-    try (Connection conn = DatabaseConfig.getConnection();
-        PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-      pstmt.setObject(1, advertisementId);
-      pstmt.setString(2, photoUrl);
-      return pstmt.executeUpdate() > 0;
-    } catch (SQLException e) {
-      throw new RuntimeException("Ошибка удаления фотографии: " + e.getMessage(), e);
+    Advertisement ad = repository().findById(advertisementId)
+        .orElseThrow(() -> new RuntimeException("Не найдено объявление: " + advertisementId));
+    if (ad.getPhotoUrls() == null) {
+      return false;
     }
+    boolean removed = ad.getPhotoUrls().remove(photoUrl);
+    if (removed) {
+      repository().save(ad);
+    }
+    return removed;
   }
 
   /**
@@ -151,37 +103,23 @@ public class AdvertisementPhotosRepository {
    * @return количество удаленных фотографий
    */
   public static int deleteAllPhotos(UUID advertisementId) {
-    String sql = "DELETE FROM advertisement_photos WHERE advertisement_id = ?";
-
-    try (Connection conn = DatabaseConfig.getConnection();
-        PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-      pstmt.setObject(1, advertisementId);
-      return pstmt.executeUpdate();
-    } catch (SQLException e) {
-      throw new RuntimeException("Ошибка удаления фотографий: " + e.getMessage(), e);
-    }
+    Advertisement ad = repository().findById(advertisementId)
+        .orElseThrow(() -> new RuntimeException("Не найдено объявление: " + advertisementId));
+    int count = ad.getPhotoUrls() == null ? 0 : ad.getPhotoUrls().size();
+    ad.setPhotoUrls(new LinkedHashSet<>());
+    repository().save(ad);
+    return count;
   }
 
   /**
    * Обновить порядок отображения фотографии
    *
-   * @param photoId ID фотографии
+   * @param photoId  ID фотографии
    * @param newOrder новый порядок отображения
    * @return true, если порядок был обновлен
    */
   public static boolean updatePhotoOrder(long photoId, int newOrder) {
-    String sql = "UPDATE advertisement_photos SET display_order = ? WHERE id = ?";
-
-    try (Connection conn = DatabaseConfig.getConnection();
-        PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-      pstmt.setInt(1, newOrder);
-      pstmt.setLong(2, photoId);
-      return pstmt.executeUpdate() > 0;
-    } catch (SQLException e) {
-      throw new RuntimeException("Ошибка обновления порядка фотографии: " + e.getMessage(), e);
-    }
+    return false;
   }
 
   /**
@@ -191,22 +129,8 @@ public class AdvertisementPhotosRepository {
    * @return количество фотографий
    */
   public static int getPhotosCount(UUID advertisementId) {
-    String sql = "SELECT COUNT(*) FROM advertisement_photos WHERE advertisement_id = ?";
-
-    try (Connection conn = DatabaseConfig.getConnection();
-        PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-      pstmt.setObject(1, advertisementId);
-
-      try (ResultSet rs = pstmt.executeQuery()) {
-        if (rs.next()) {
-          return rs.getInt(1);
-        }
-      }
-    } catch (SQLException e) {
-      throw new RuntimeException("Ошибка подсчета фотографий: " + e.getMessage(), e);
-    }
-
-    return 0;
+    Advertisement ad = repository().findById(advertisementId)
+        .orElseThrow(() -> new RuntimeException("Не найдено объявление: " + advertisementId));
+    return ad.getPhotoUrls() == null ? 0 : ad.getPhotoUrls().size();
   }
 }

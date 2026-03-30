@@ -17,7 +17,7 @@ import lombok.NoArgsConstructor;
 public class Wallet {
 
   @Id
-  @Column(name = "owner_id")
+  @Column(name = "owner")
   private UUID ownerId;
 
   @Column(name = "available_tokens", nullable = false)

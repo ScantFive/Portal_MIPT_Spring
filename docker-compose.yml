@@ -1,8 +1,7 @@
 services:
   db:
-    image: postgres:18
+    image: postgres:16
     environment:
-      POSTGRES_HOST: db
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: JavaMTS
       POSTGRES_DB: portal_DB
@@ -10,3 +9,24 @@ services:
       - "5432:5432"
     volumes:
       - ./src/main/resources/db-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d portal_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/portal_DB
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: JavaMTS
+      SERVER_PORT: 8080
+    ports:
+      - "8080:8080"
+

@@ -1,22 +1,46 @@
 package com.mipt.chat.model;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
+@Entity
+@Table(name = "messages")
 @Builder
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class Message {
+  @Id
+  @Column(name = "id")
   @Builder.Default
-  final UUID id = UUID.randomUUID();
-  final UUID chatId;
-  final UUID senderId;
+  private UUID id = UUID.randomUUID();
+
+  @Column(name = "chat", nullable = false)
+  private UUID chatId;
+
+  @Column(name = "sender")
+  private UUID senderId;
+
+  @Column(name = "sending_time", nullable = false)
   @Builder.Default
-  final Instant sendingTime = Instant.now();
-  String text;
+  private Instant sendingTime = Instant.now();
+
+  @Column(name = "text")
+  private String text;
+
+  @Column(name = "editing_time", nullable = false)
   @Builder.Default
-  Instant editingTime = Instant.EPOCH;
+  private Instant editingTime = Instant.EPOCH;
+
+  @Column(name = "is_read", nullable = false)
   @Builder.Default
-  boolean isRead = false;
+  private boolean read = false;
 }

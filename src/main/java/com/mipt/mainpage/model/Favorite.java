@@ -10,7 +10,8 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "favorites", uniqueConstraints = @UniqueConstraint(columnNames = { "user_id", "advertisement_id" }))
+@Table(name = "favorites")
+@IdClass(FavoriteId.class)
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -18,17 +19,14 @@ import java.util.UUID;
 public class Favorite {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.UUID)
-  @Column(name = "id")
-  private UUID id;
-
   @Column(name = "user_id", nullable = false)
   private UUID userId;
 
+  @Id
   @Column(name = "advertisement_id", nullable = false)
   private UUID advertisementId;
 
-  @Column(name = "created_at", nullable = false)
+  @Column(name = "created_at", nullable = false, updatable = false)
   private Instant createdAt;
 
   @PrePersist

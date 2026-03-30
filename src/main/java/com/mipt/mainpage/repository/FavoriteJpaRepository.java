@@ -1,6 +1,7 @@
 package com.mipt.mainpage.repository;
 
 import com.mipt.mainpage.model.Favorite;
+import com.mipt.mainpage.model.FavoriteId;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -9,7 +10,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface FavoriteJpaRepository extends JpaRepository<Favorite, UUID> {
+public interface FavoriteJpaRepository extends JpaRepository<Favorite, FavoriteId> {
 
   boolean existsByUserIdAndAdvertisementId(UUID userId, UUID advertisementId);
 

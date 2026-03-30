@@ -2,7 +2,9 @@ package com.mipt.search.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -32,9 +34,10 @@ public class SearchHistory {
   @Column(name = "search_type")
   private SearchType searchType;
 
-  @ElementCollection(fetch = FetchType.EAGER)
-  @CollectionTable(name = "search_history_categories", joinColumns = @JoinColumn(name = "search_history_id"))
-  @Column(name = "category")
+  @Column(name = "categories", columnDefinition = "TEXT[]")
+  private String categoriesRaw;
+
+  @Transient
   private List<String> categories;
 
   @Column(name = "filters_json", columnDefinition = "TEXT")
@@ -49,6 +52,44 @@ public class SearchHistory {
 
   @Column(name = "created_at", nullable = false)
   private LocalDateTime createdAt;
+
+  @PrePersist
+  @PreUpdate
+  private void syncCategoriesRaw() {
+    if (categories == null || categories.isEmpty()) {
+      categoriesRaw = null;
+      return;
+    }
+    categoriesRaw = "{" + categories.stream()
+        .filter(Objects::nonNull)
+        .map(value -> "\"" + value.replace("\"", "\\\"") + "\"")
+        .reduce((a, b) -> a + "," + b)
+        .orElse("") + "}";
+  }
+
+  @PostLoad
+  private void hydrateCategories() {
+    if (categoriesRaw == null || categoriesRaw.isBlank()) {
+      categories = new ArrayList<>();
+      return;
+    }
+    String trimmed = categoriesRaw.trim();
+    if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+      trimmed = trimmed.substring(1, trimmed.length() - 1);
+    }
+    if (trimmed.isBlank()) {
+      categories = new ArrayList<>();
+      return;
+    }
+    categories = new ArrayList<>();
+    for (String token : trimmed.split(",")) {
+      String value = token.trim();
+      if (value.startsWith("\"") && value.endsWith("\"")) {
+        value = value.substring(1, value.length() - 1);
+      }
+      categories.add(value.replace("\\\"", "\""));
+    }
+  }
 
   /** Создает объект истории из поискового запроса */
   public static SearchHistory fromSearchQuery(UUID userId, SearchQuery query, int resultsCount) {

@@ -1,137 +1,48 @@
 package com.mipt.user.repository;
 
 import com.mipt.user.model.User;
-import com.mipt.util.DatabaseConfig;
-import java.sql.*;
+import com.mipt.util.SpringContext;
 import java.util.*;
 
 public class UserRepository {
 
+  private UserJpaRepository repository() {
+    return SpringContext.getBean(UserJpaRepository.class);
+  }
+
   public void save(User user) {
-    String sql = """
-        INSERT INTO users (id, login, email, hashed_password, activated)
-        VALUES (?, ?, ?, ?, ?)
-        """;
-    try (Connection conn = DatabaseConfig.getConnection();
-        PreparedStatement stmt = conn.prepareStatement(sql)) {
-      stmt.setObject(1, user.getUserID());
-      stmt.setString(2, user.getLogin());
-      stmt.setString(3, user.getEmail().toLowerCase().trim());
-      stmt.setString(4, user.getHashedPassword());
-      stmt.setBoolean(5, user.getActivated());
-      stmt.executeUpdate();
-    } catch (SQLException e) {
-      throw new RuntimeException("Ошибка сохранения пользователя", e);
-    }
+    repository().save(user);
   }
 
   public boolean existsByEmail(String email) {
-    String sql = "SELECT 1 FROM users WHERE email = ?";
-    try (Connection conn = DatabaseConfig.getConnection();
-        PreparedStatement stmt = conn.prepareStatement(sql)) {
-      stmt.setString(1, email.toLowerCase().trim());
-      try (ResultSet rs = stmt.executeQuery()) {
-        return rs.next();
-      }
-    } catch (SQLException e) {
-      throw new RuntimeException("Ошибка проверки email", e);
-    }
+    return repository().existsByEmail(email.toLowerCase().trim());
   }
 
   public Optional<User> findByEmail(String email) {
-    String sql = "SELECT * FROM users WHERE email = ?";
-    try (Connection conn = DatabaseConfig.getConnection();
-        PreparedStatement stmt = conn.prepareStatement(sql)) {
-      stmt.setString(1, email.toLowerCase().trim());
-      try (ResultSet rs = stmt.executeQuery()) {
-        if (rs.next()) {
-          return Optional.of(mapRowToUser(rs));
-        }
-        return Optional.empty();
-      }
-    } catch (SQLException e) {
-      throw new RuntimeException("Ошибка поиска по email", e);
-    }
+    return repository().findByEmail(email.toLowerCase().trim());
   }
 
   public Optional<User> findById(UUID id) {
-    String sql = "SELECT * FROM users WHERE id = ?";
-    try (Connection conn = DatabaseConfig.getConnection();
-        PreparedStatement stmt = conn.prepareStatement(sql)) {
-      stmt.setObject(1, id);
-      try (ResultSet rs = stmt.executeQuery()) {
-        if (rs.next()) {
-          return Optional.of(mapRowToUser(rs));
-        }
-        return Optional.empty();
-      }
-    } catch (SQLException e) {
-      throw new RuntimeException("Ошибка поиска по ID", e);
-    }
+    return repository().findById(id);
   }
 
   public void update(User user) {
-    String sql = """
-        UPDATE users
-        SET login = ?, email = ?, hashed_password = ?, activated = ?
-        WHERE id = ?
-        """;
-    try (Connection conn = DatabaseConfig.getConnection();
-        PreparedStatement stmt = conn.prepareStatement(sql)) {
-      stmt.setString(1, user.getLogin());
-      stmt.setString(2, user.getEmail().toLowerCase().trim());
-      stmt.setString(3, user.getHashedPassword());
-      stmt.setBoolean(4, user.getActivated());
-      stmt.setObject(5, user.getUserID());
-      stmt.executeUpdate();
-    } catch (SQLException e) {
-      throw new RuntimeException("Ошибка обновления пользователя", e);
-    }
+    repository().save(user);
   }
 
   public List<User> findAll() {
-    String sql = "SELECT * FROM users";
-    try (Connection conn = DatabaseConfig.getConnection();
-        Statement stmt = conn.createStatement();
-        ResultSet rs = stmt.executeQuery(sql)) {
-      List<User> users = new ArrayList<>();
-      while (rs.next()) {
-        users.add(mapRowToUser(rs));
-      }
-      return users;
-    } catch (SQLException e) {
-      throw new RuntimeException("Ошибка получения всех пользователей", e);
-    }
+    return repository().findAll();
   }
 
   public boolean deleteById(UUID id) {
-    String sql = "DELETE FROM users WHERE id = ?";
-    try (Connection conn = DatabaseConfig.getConnection();
-        PreparedStatement stmt = conn.prepareStatement(sql)) {
-      stmt.setObject(1, id);
-      return stmt.executeUpdate() > 0;
-    } catch (SQLException e) {
-      throw new RuntimeException("Ошибка удаления по ID: " + id, e);
+    if (!repository().existsById(id)) {
+      return false;
     }
+    repository().deleteById(id);
+    return true;
   }
 
   public void clear() {
-    try (Connection conn = DatabaseConfig.getConnection();
-        Statement stmt = conn.createStatement()) {
-      stmt.execute("DELETE FROM users");
-    } catch (SQLException e) {
-      throw new RuntimeException("Ошибка очистки таблицы", e);
-    }
-  }
-
-  // Вспомогательный метод: ResultSet → User
-  private User mapRowToUser(ResultSet rs) throws SQLException {
-    UUID id = (UUID) rs.getObject("id");
-    String login = rs.getString("login");
-    String email = rs.getString("email");
-    String passwordHash = rs.getString("hashed_password");
-    boolean activated = rs.getBoolean("activated");
-
-    return User.fromDatabase(id, login, email, passwordHash, activated);
+    repository().deleteAll();
   }
 }
