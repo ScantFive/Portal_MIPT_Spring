@@ -23,7 +23,7 @@ services:
     ports:
       - "2181:2181"
     healthcheck:
-      test: ["CMD-SHELL", "echo ruok | nc -w 2 localhost 2181 | grep imok || exit 1"]
+      test: ["CMD-SHELL", "echo srvr | nc -w 2 localhost 2181 | grep Mode || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
