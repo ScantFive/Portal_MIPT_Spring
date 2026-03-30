@@ -1,6 +1,5 @@
 package com.mipt.search.repository;
 
-import com.mipt.search.model.SearchCategory;
 import com.mipt.search.model.SearchHistory;
 import com.mipt.search.model.SearchQuery;
 import com.mipt.util.SpringContext;

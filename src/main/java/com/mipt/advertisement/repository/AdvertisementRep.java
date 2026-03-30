@@ -28,7 +28,6 @@ public interface AdvertisementRep {
 
   List<Advertisement> findByCategory(Category category);
 
-  // Методы для работы с одной категорией
   Category getCategory(UUID advertisementId);
 
   Advertisement setCategory(UUID advertisementId, Category category);

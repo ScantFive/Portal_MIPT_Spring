@@ -2,11 +2,8 @@ package com.mipt.user.service;
 
 import com.mipt.user.model.User;
 import com.mipt.user.repository.UserRepository;
-import com.mipt.wallet.model.Wallet;
 import com.mipt.wallet.repository.WalletRepository;
-import lombok.Data;
 
-import java.util.List;
 import java.util.Optional;
 import lombok.Data;
 
