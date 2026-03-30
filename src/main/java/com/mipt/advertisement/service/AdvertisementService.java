@@ -1,5 +1,6 @@
 package com.mipt.advertisement.service;
 
+import com.mipt.advertisement.event.AdvertisementEvent;
 import com.mipt.advertisement.model.Advertisement;
 import com.mipt.advertisement.model.AdvertisementStatus;
 import com.mipt.advertisement.model.Category;
@@ -18,6 +19,7 @@ import java.util.*;
 public class AdvertisementService implements AdvertisementRep {
 
   private final AdvertisementJpaRepository repository;
+  private final KafkaEventPublisher eventPublisher;
 
   @Override
   public Advertisement create(Advertisement advertisement) {
@@ -34,14 +36,18 @@ public class AdvertisementService implements AdvertisementRep {
     if (advertisement.getPhotoUrls() == null) {
       advertisement.setPhotoUrls(new HashSet<>());
     }
-    return repository.save(advertisement);
+    Advertisement saved = repository.save(advertisement);
+    eventPublisher.publishEvent(AdvertisementEvent.created(saved));
+    return saved;
   }
 
   @Override
   public Advertisement publish(Advertisement advertisement) {
     advertisement.validateToPublish();
     advertisement.setStatus(AdvertisementStatus.ACTIVE);
-    return repository.save(advertisement);
+    Advertisement updated = repository.save(advertisement);
+    eventPublisher.publishEvent(AdvertisementEvent.published(updated));
+    return updated;
   }
 
   @Override
@@ -51,7 +57,9 @@ public class AdvertisementService implements AdvertisementRep {
           "Can only pause active advertisements. Current status: " + advertisement.getStatus());
     }
     advertisement.setStatus(AdvertisementStatus.PAUSED);
-    return repository.save(advertisement);
+    Advertisement updated = repository.save(advertisement);
+    eventPublisher.publishEvent(AdvertisementEvent.paused(updated));
+    return updated;
   }
 
   @Override
@@ -102,11 +110,16 @@ public class AdvertisementService implements AdvertisementRep {
 
   @Override
   public Advertisement update(Advertisement advertisement) {
-    return repository.save(advertisement);
+    Advertisement updated = repository.save(advertisement);
+    eventPublisher.publishEvent(AdvertisementEvent.updated(updated));
+    return updated;
   }
 
   @Override
   public void delete(UUID id) {
+    Advertisement advertisement = repository.findById(id)
+        .orElseThrow(() -> new IllegalArgumentException("Advertisement not found: " + id));
+    eventPublisher.publishEvent(AdvertisementEvent.deleted(advertisement));
     repository.deleteById(id);
   }
 
@@ -118,7 +131,13 @@ public class AdvertisementService implements AdvertisementRep {
       advertisement.setPhotoUrls(new HashSet<>());
     }
     advertisement.getPhotoUrls().add(photoUrl);
-    return repository.save(advertisement);
+    Advertisement updated = repository.save(advertisement);
+    eventPublisher.publishEvent(AdvertisementEvent.photoAdded(
+        advertisement.getId(),
+        advertisement.getName(),
+        advertisement.getAuthorId(),
+        photoUrl));
+    return updated;
   }
 
   @Override
@@ -128,15 +147,29 @@ public class AdvertisementService implements AdvertisementRep {
     if (advertisement.getPhotoUrls() != null) {
       advertisement.getPhotoUrls().remove(photoUrl);
     }
-    return repository.save(advertisement);
+    Advertisement updated = repository.save(advertisement);
+    eventPublisher.publishEvent(AdvertisementEvent.photoRemoved(
+        advertisement.getId(),
+        advertisement.getName(),
+        advertisement.getAuthorId(),
+        photoUrl));
+    return updated;
   }
 
   @Override
   public Advertisement updatePrice(UUID advertisementId, Long price) {
     Advertisement advertisement = repository.findById(advertisementId)
         .orElseThrow(() -> new IllegalArgumentException("Advertisement not found: " + advertisementId));
+    Long oldPrice = advertisement.getPrice();
     advertisement.setPrice(price);
-    return repository.save(advertisement);
+    Advertisement updated = repository.save(advertisement);
+    eventPublisher.publishEvent(AdvertisementEvent.priceChanged(
+        advertisement.getId(),
+        advertisement.getName(),
+        advertisement.getAuthorId(),
+        oldPrice,
+        price));
+    return updated;
   }
 
   @Override
@@ -144,7 +177,13 @@ public class AdvertisementService implements AdvertisementRep {
     Advertisement advertisement = repository.findById(advertisementId)
         .orElseThrow(() -> new IllegalArgumentException("Advertisement not found: " + advertisementId));
     advertisement.setFavorite(!advertisement.isFavorite());
-    return repository.save(advertisement);
+    Advertisement updated = repository.save(advertisement);
+    eventPublisher.publishEvent(AdvertisementEvent.favoriteToggled(
+        advertisement.getId(),
+        advertisement.getName(),
+        advertisement.getAuthorId(),
+        updated.isFavorite()));
+    return updated;
   }
 
   @Override
@@ -152,7 +191,13 @@ public class AdvertisementService implements AdvertisementRep {
     Advertisement advertisement = repository.findById(advertisementId)
         .orElseThrow(() -> new IllegalArgumentException("Advertisement not found: " + advertisementId));
     advertisement.setFavorite(isFavorite);
-    return repository.save(advertisement);
+    Advertisement updated = repository.save(advertisement);
+    eventPublisher.publishEvent(AdvertisementEvent.favoriteToggled(
+        advertisement.getId(),
+        advertisement.getName(),
+        advertisement.getAuthorId(),
+        isFavorite));
+    return updated;
   }
 
   @Override
