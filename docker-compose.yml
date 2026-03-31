@@ -10,7 +10,7 @@ services:
     volumes:
       - ./src/main/resources/db-init:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d portal_DB"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d portal_DB" ]
       interval: 5s
       timeout: 5s
       retries: 12
@@ -23,7 +23,7 @@ services:
     ports:
       - "2181:2181"
     healthcheck:
-      test: ["CMD-SHELL", "echo srvr | nc -w 2 localhost 2181 | grep Mode || exit 1"]
+      test: [ "CMD-SHELL", "echo srvr | nc -w 2 localhost 2181 | grep Mode || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -48,7 +48,7 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
     healthcheck:
-      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
+      test: [ "CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list" ]
       interval: 30s
       timeout: 10s
       retries: 10
@@ -66,9 +66,11 @@ services:
       KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
 
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: eclipse-temurin:21-jre
+    working_dir: /app
+    command: [ "java", "-jar", "/app/portal-mipt-1.0-SNAPSHOT.jar" ]
+    volumes:
+      - ./target/portal-mipt-1.0-SNAPSHOT.jar:/app/portal-mipt-1.0-SNAPSHOT.jar:ro
     depends_on:
       db:
         condition: service_healthy
@@ -82,4 +84,3 @@ services:
       SERVER_PORT: 8080
     ports:
       - "8080:8080"
-
