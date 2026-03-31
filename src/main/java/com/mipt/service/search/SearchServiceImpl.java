@@ -12,7 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
 import java.util.stream.Collectors;
 
-@Service
+@Service("legacySearchServiceImpl")
 @RequiredArgsConstructor
 @Transactional
 // Реализация сервиса поиска объявлений
@@ -77,8 +77,7 @@ public class SearchServiceImpl implements SearchService {
 
     SearchQuery effectiveQuery = Optional.ofNullable(query).orElseGet(SearchQuery::new);
 
-    List<ShortAdvert> results =
-        SearchRepository.getFavoriteAdverts(userId, limit, offset, effectiveQuery);
+    List<ShortAdvert> results = SearchRepository.getFavoriteAdverts(userId, limit, offset, effectiveQuery);
 
     // Сохраняем поиск в избранном в историю
     if (isSignificantQuery(effectiveQuery)) {
@@ -145,20 +144,18 @@ public class SearchServiceImpl implements SearchService {
     // Собираем подсказки из разных источников
     if (userId != null) {
       // Для авторизованных пользователей добавляем персональные подсказки
-      List<SearchSuggestion> historySuggestions =
-          getHistorySuggestions(userId, prefix, historyLimit);
+      List<SearchSuggestion> historySuggestions = getHistorySuggestions(userId, prefix, historyLimit);
       allSuggestions.addAll(historySuggestions);
 
       // Добавляем персонализированные подсказки
-      List<SearchSuggestion> personalizedSuggestions =
-          getPersonalizedSuggestions(userId, prefix, Math.max(1, historyLimit / 2));
+      List<SearchSuggestion> personalizedSuggestions = getPersonalizedSuggestions(userId, prefix,
+          Math.max(1, historyLimit / 2));
       allSuggestions.addAll(personalizedSuggestions);
     }
 
     // Автодополнение из объявлений (для всех пользователей)
     if (prefix != null && !prefix.trim().isEmpty()) {
-      List<SearchSuggestion> autocompleteSuggestions =
-          getAutocompleteSuggestions(prefix, autocompleteLimit);
+      List<SearchSuggestion> autocompleteSuggestions = getAutocompleteSuggestions(prefix, autocompleteLimit);
       allSuggestions.addAll(autocompleteSuggestions);
     }
 
