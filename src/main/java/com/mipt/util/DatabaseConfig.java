@@ -27,16 +27,11 @@ public class DatabaseConfig {
    */
   public void executeSqlScript(String filePath) throws IOException {
     String content = new String(Files.readAllBytes(Paths.get(filePath)), StandardCharsets.UTF_8);
-    String[] statements = content.split(";");
-    for (String statement : statements) {
-      if (!statement.trim().isEmpty()) {
-        try {
-          jdbcTemplate.execute(statement.trim());
-        } catch (Exception e) {
-          // Log but continue - some statements may fail due to existing objects
-          System.err.println("Skipping statement due to error: " + e.getMessage());
-        }
-      }
+    try {
+      jdbcTemplate.execute(content);
+    } catch (Exception e) {
+      // Log but continue - some scripts may fail due to existing objects
+      System.err.println("Skipping script due to error: " + e.getMessage());
     }
   }
 
@@ -48,15 +43,10 @@ public class DatabaseConfig {
   public void executeSqlScriptFromResource(String resourcePath) throws IOException {
     ClassPathResource resource = new ClassPathResource(resourcePath);
     String content = new String(resource.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-    String[] statements = content.split(";");
-    for (String statement : statements) {
-      if (!statement.trim().isEmpty()) {
-        try {
-          jdbcTemplate.execute(statement.trim());
-        } catch (Exception e) {
-          System.err.println("Skipping statement due to error: " + e.getMessage());
-        }
-      }
+    try {
+      jdbcTemplate.execute(content);
+    } catch (Exception e) {
+      System.err.println("Skipping script due to error: " + e.getMessage());
     }
   }
 

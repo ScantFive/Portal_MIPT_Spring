@@ -3,6 +3,7 @@ package com.mipt.search.model;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -10,6 +11,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /** Модель истории поискового запроса. */
 @Entity
@@ -34,13 +37,15 @@ public class SearchHistory {
   @Column(name = "search_type")
   private SearchType searchType;
 
+  @JdbcTypeCode(SqlTypes.ARRAY)
   @Column(name = "categories", columnDefinition = "TEXT[]")
-  private String categoriesRaw;
+  private String[] categoriesRaw;
 
   @Transient
   private List<String> categories;
 
-  @Column(name = "filters_json", columnDefinition = "TEXT")
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "filters_json", columnDefinition = "jsonb")
   private String filtersJson;
 
   @Enumerated(EnumType.STRING)
@@ -60,35 +65,16 @@ public class SearchHistory {
       categoriesRaw = null;
       return;
     }
-    categoriesRaw = "{" + categories.stream()
-        .filter(Objects::nonNull)
-        .map(value -> "\"" + value.replace("\"", "\\\"") + "\"")
-        .reduce((a, b) -> a + "," + b)
-        .orElse("") + "}";
+    categoriesRaw = categories.stream().filter(Objects::nonNull).toArray(String[]::new);
   }
 
   @PostLoad
   private void hydrateCategories() {
-    if (categoriesRaw == null || categoriesRaw.isBlank()) {
+    if (categoriesRaw == null || categoriesRaw.length == 0) {
       categories = new ArrayList<>();
       return;
     }
-    String trimmed = categoriesRaw.trim();
-    if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
-      trimmed = trimmed.substring(1, trimmed.length() - 1);
-    }
-    if (trimmed.isBlank()) {
-      categories = new ArrayList<>();
-      return;
-    }
-    categories = new ArrayList<>();
-    for (String token : trimmed.split(",")) {
-      String value = token.trim();
-      if (value.startsWith("\"") && value.endsWith("\"")) {
-        value = value.substring(1, value.length() - 1);
-      }
-      categories.add(value.replace("\\\"", "\""));
-    }
+    categories = new ArrayList<>(Arrays.asList(categoriesRaw));
   }
 
   /** Создает объект истории из поискового запроса */
