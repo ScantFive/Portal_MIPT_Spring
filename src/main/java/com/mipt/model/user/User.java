@@ -1,12 +1,11 @@
 package com.mipt.model.user;
 
 import com.mipt.service.util.PasswordHasher;
-import jakarta.persistence.*;
+import jakarta.persistence.Id;
 import lombok.*;
 import java.io.Serializable;
 import java.util.UUID;
 
-@Entity
 @Data
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class User implements Serializable {

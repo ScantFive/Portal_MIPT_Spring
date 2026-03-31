@@ -1,6 +1,5 @@
 package com.mipt.model.advertisement;
 
-import jakarta.persistence.Entity;
 import lombok.Data;
 
 import java.time.Instant;
@@ -9,7 +8,6 @@ import java.util.TreeSet;
 import java.util.UUID;
 
 @Data
-@Entity
 public class Advertisement {
 
   private UUID id;
@@ -63,10 +61,9 @@ public class Advertisement {
     if (categoryType != null && categoryType != this.type) {
       throw new IllegalArgumentException(
           String.format("Категория '%s' не подходит для типа '%s'. " +
-                  "Для товаров выберите категорию из раздела 'товары', " +
-                  "для услуг - из раздела 'услуги'",
-              category.getDisplayName(), type)
-      );
+              "Для товаров выберите категорию из раздела 'товары', " +
+              "для услуг - из раздела 'услуги'",
+              category.getDisplayName(), type));
     }
   }
 

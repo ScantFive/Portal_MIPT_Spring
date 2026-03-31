@@ -1,6 +1,5 @@
 package com.mipt.model.chat;
 
-import jakarta.persistence.Entity;
 import lombok.Builder;
 import lombok.Data;
 
@@ -9,7 +8,6 @@ import java.util.UUID;
 
 @Builder
 @Data
-@Entity
 public class Message {
   @Builder.Default
   final UUID id = UUID.randomUUID();
