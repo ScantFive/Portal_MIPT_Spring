@@ -1,5 +1,6 @@
 package com.mipt.user.service;
 
+import com.mipt.user.event.UserEvent;
 import com.mipt.user.model.User;
 import com.mipt.user.repository.UserJpaRepository;
 import lombok.RequiredArgsConstructor;
@@ -16,12 +17,14 @@ import java.util.UUID;
 public class UserService {
 
   private final UserJpaRepository repository;
+  private final UserKafkaEventPublisher eventPublisher;
 
   public void save(User user) {
     if (user.getUserID() == null) {
       user.setUserID(UUID.randomUUID());
     }
-    repository.save(user);
+    User saved = repository.save(user);
+    eventPublisher.publish(UserEvent.registered(saved));
   }
 
   public boolean existsByEmail(String email) {
@@ -37,7 +40,8 @@ public class UserService {
   }
 
   public void update(User user) {
-    repository.save(user);
+    User updated = repository.save(user);
+    eventPublisher.publish(UserEvent.updated(updated));
   }
 
   public List<User> findAll() {
@@ -45,8 +49,10 @@ public class UserService {
   }
 
   public boolean deleteById(UUID id) {
-    if (repository.existsById(id)) {
+    User existing = repository.findById(id).orElse(null);
+    if (existing != null) {
       repository.deleteById(id);
+      eventPublisher.publish(UserEvent.deleted(existing));
       return true;
     }
     return false;

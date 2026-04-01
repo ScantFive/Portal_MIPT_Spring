@@ -1,14 +1,18 @@
 package com.mipt.chat.service;
 
+import com.mipt.chat.event.ChatEvent;
 import com.mipt.chat.model.Chat;
 import com.mipt.chat.model.Message;
 import com.mipt.chat.repository.ChatRepository;
 import com.mipt.chat.repository.MessageRepository;
+import com.mipt.util.SpringContext;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class MessageService implements ChatService {
   ChatRepository chatRepository = new ChatRepository();
   MessageRepository messageRepository = new MessageRepository();
@@ -19,6 +23,7 @@ public class MessageService implements ChatService {
       throw new RuntimeException("Chat with this ID already exists.");
     }
     chatRepository.create(chat);
+    publishEvent(ChatEvent.chatCreated(chat));
   }
 
   @Override
@@ -26,8 +31,10 @@ public class MessageService implements ChatService {
     if (!chatRepository.existsById(chatId)) {
       throw new RuntimeException("No chats with this ID.");
     }
+    Chat existing = chatRepository.findById(chatId);
     chatRepository.deleteById(chatId);
     messageRepository.deleteByChatId(chatId);
+    publishEvent(ChatEvent.chatDeleted(existing));
   }
 
   @Override
@@ -68,7 +75,9 @@ public class MessageService implements ChatService {
     Chat chat = chatRepository.findById(chatId);
     chat.setLastUpdate(message.getSendingTime());
     chatRepository.update(chat);
-    return messageRepository.create(message);
+    Message created = messageRepository.create(message);
+    publishEvent(ChatEvent.messageSent(created, resolveReceiver(chat, senderId)));
+    return created;
   }
 
   @Override
@@ -80,6 +89,7 @@ public class MessageService implements ChatService {
     message.setText(text);
     message.setEditingTime(Instant.now());
     messageRepository.update(message);
+    publishEvent(ChatEvent.messageEdited(message, resolveReceiverByMessage(message)));
     return message;
   }
 
@@ -88,7 +98,9 @@ public class MessageService implements ChatService {
     if (!messageRepository.existsById(messageId)) {
       throw new RuntimeException("No messages with this ID.");
     }
+    Message message = messageRepository.findById(messageId);
     messageRepository.deleteById(messageId);
+    publishEvent(ChatEvent.messageDeleted(message, resolveReceiverByMessage(message)));
   }
 
   @Override
@@ -105,5 +117,29 @@ public class MessageService implements ChatService {
 
     message.setRead(true);
     messageRepository.update(message);
+    publishEvent(ChatEvent.messageRead(message, userId));
+  }
+
+  private UUID resolveReceiver(Chat chat, UUID senderId) {
+    if (chat == null) {
+      return null;
+    }
+    if (senderId != null && senderId.equals(chat.getOwnerId())) {
+      return chat.getMemberId();
+    }
+    return chat.getOwnerId();
+  }
+
+  private UUID resolveReceiverByMessage(Message message) {
+    Chat chat = chatRepository.findById(message.getChatId());
+    return resolveReceiver(chat, message.getSenderId());
+  }
+
+  private void publishEvent(ChatEvent event) {
+    try {
+      SpringContext.getBean(ChatKafkaEventPublisher.class).publish(event);
+    } catch (Exception ex) {
+      log.error("Unable to publish CHAT event {}", event != null ? event.getEventType() : "unknown", ex);
+    }
   }
 }
