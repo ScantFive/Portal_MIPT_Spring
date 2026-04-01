@@ -1,6 +1,7 @@
 package com.mipt.search.service;
 
 import com.mipt.mainpage.model.ShortAdvert;
+import com.mipt.search.event.SearchHistoryEvent;
 import com.mipt.search.model.SearchHistory;
 import com.mipt.search.model.SearchQuery;
 import com.mipt.search.model.SearchSuggestion;
@@ -24,6 +25,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class SearchServiceImpl implements SearchService {
 
+  private final SearchKafkaEventPublisher eventPublisher;
+
   @Override
   public List<ShortAdvert> search(long limit, long offset, SearchQuery query) {
     return search(limit, offset, query, null);
@@ -36,6 +39,7 @@ public class SearchServiceImpl implements SearchService {
 
     if (userId != null && isSignificantQuery(effectiveQuery)) {
       SearchHistoryRepository.saveSearchHistory(userId, effectiveQuery, adverts.size());
+      eventPublisher.publish(SearchHistoryEvent.performed(userId, effectiveQuery, adverts.size()));
     }
 
     return adverts;

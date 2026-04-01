@@ -1,5 +1,6 @@
 package com.mipt.mainpage.service;
 
+import com.mipt.mainpage.event.MainPageEvent;
 import com.mipt.mainpage.model.Favorite;
 import com.mipt.mainpage.repository.FavoriteJpaRepository;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +15,7 @@ import java.util.UUID;
 public class FavoriteService {
 
   private final FavoriteJpaRepository repository;
+  private final MainPageKafkaEventPublisher eventPublisher;
 
   public boolean isFavorite(UUID userId, UUID advertisementId) {
     return repository.existsByUserIdAndAdvertisementId(userId, advertisementId);
@@ -26,11 +28,13 @@ public class FavoriteService {
           .advertisementId(advertisementId)
           .build();
       repository.save(favorite);
+      eventPublisher.publish(MainPageEvent.favoriteAdded(userId, advertisementId));
     }
   }
 
   public void removeFromFavorites(UUID userId, UUID advertisementId) {
     repository.deleteByUserIdAndAdvertisementId(userId, advertisementId);
+    eventPublisher.publish(MainPageEvent.favoriteRemoved(userId, advertisementId));
   }
 
   public long getFavoritesCount(UUID userId) {

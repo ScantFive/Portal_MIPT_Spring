@@ -253,6 +253,21 @@ public enum Category {
     }
   }
 
+  public static Category fromDbValue(String value) {
+    Category exact = fromNameSafe(value);
+    if (exact != null) {
+      return exact;
+    }
+
+    String normalized = value.trim();
+    for (Category category : values()) {
+      if (category.getDisplayName().startsWith(normalized + "/")) {
+        return category;
+      }
+    }
+    return null;
+  }
+
   // Метод для получения типа объявления по категории
   public static Type getTypeForCategory(Category category) {
     if (category == null) {

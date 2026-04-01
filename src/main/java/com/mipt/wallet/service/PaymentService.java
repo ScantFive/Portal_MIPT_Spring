@@ -1,5 +1,7 @@
 package com.mipt.wallet.service;
 
+import com.mipt.util.SpringContext;
+import com.mipt.wallet.event.WalletEvent;
 import com.mipt.wallet.model.Operation;
 import com.mipt.wallet.model.OperationType;
 import com.mipt.wallet.model.Wallet;
@@ -8,7 +10,9 @@ import com.mipt.wallet.repository.WalletRepository;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class PaymentService implements WalletService {
   WalletRepository walletRepository = new WalletRepository();
   OperationRepository operationRepository = new OperationRepository();
@@ -19,6 +23,7 @@ public class PaymentService implements WalletService {
       throw new RuntimeException("Wallet with this ID already exists.");
     }
     walletRepository.create(wallet);
+    publishEvent(WalletEvent.walletCreated(wallet));
   }
 
   @Override
@@ -45,7 +50,9 @@ public class PaymentService implements WalletService {
     performerWallet.setAvailableTokens(performerWallet.getAvailableTokens() + amount);
     walletRepository.update(clientWallet);
     walletRepository.update(performerWallet);
-    return operationRepository.create(payOperation);
+    Operation created = operationRepository.create(payOperation);
+    publishEvent(WalletEvent.operationCreated(created));
+    return created;
   }
 
   @Override
@@ -61,7 +68,9 @@ public class PaymentService implements WalletService {
     performerWallet.setAvailableTokens(performerWallet.getAvailableTokens() - amount);
     walletRepository.update(clientWallet);
     walletRepository.update(performerWallet);
-    return operationRepository.create(refundOperation);
+    Operation created = operationRepository.create(refundOperation);
+    publishEvent(WalletEvent.operationCreated(created));
+    return created;
   }
 
   @Override
@@ -75,7 +84,9 @@ public class PaymentService implements WalletService {
     clientWallet.setAvailableTokens(clientWallet.getAvailableTokens() - amount);
     clientWallet.setReservedTokens(clientWallet.getReservedTokens() + amount);
     walletRepository.update(clientWallet);
-    return operationRepository.create(reserveOperation);
+    Operation created = operationRepository.create(reserveOperation);
+    publishEvent(WalletEvent.operationCreated(created));
+    return created;
   }
 
   @Override
@@ -89,6 +100,16 @@ public class PaymentService implements WalletService {
     clientWallet.setReservedTokens(clientWallet.getReservedTokens() - amount);
     clientWallet.setAvailableTokens(clientWallet.getAvailableTokens() + amount);
     walletRepository.update(clientWallet);
-    return operationRepository.create(cancelOperation);
+    Operation created = operationRepository.create(cancelOperation);
+    publishEvent(WalletEvent.operationCreated(created));
+    return created;
+  }
+
+  private void publishEvent(WalletEvent event) {
+    try {
+      SpringContext.getBean(WalletKafkaEventPublisher.class).publish(event);
+    } catch (Exception ex) {
+      log.error("Unable to publish WALLET event {}", event != null ? event.getEventType() : "unknown", ex);
+    }
   }
 }

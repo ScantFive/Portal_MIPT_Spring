@@ -47,7 +47,7 @@ public class Advertisement {
   @OrderBy("display_order ASC")
   private Set<String> photoUrls;
 
-  @Enumerated(EnumType.STRING)
+  @Convert(converter = com.mipt.advertisement.model.CategoryAttributeConverter.class)
   @Column(name = "category")
   private Category category;
 
