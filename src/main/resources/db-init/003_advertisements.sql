@@ -43,7 +43,7 @@ CREATE INDEX idx_advertisements_name_trgm ON advertisements USING gin(name gin_t
 
 INSERT INTO advertisements (id, status, author, type, category, name, price, description) VALUES
   ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'::uuid, 'ACTIVE', '11111111-1111-1111-1111-111111111111'::uuid, 'OBJECTS',  'Товары/Книги/Учебники', 'Учебники по SQL', 1000, 'Книги по SQL с примерами.'),
-  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'::uuid, 'ACTIVE', '22222222-2222-2222-2222-222222222222'::uuid, 'OBJECTS',  'Товары/Инструменты', 'Набор отверток', 150,  'Продаю отвертки!'),
+  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'::uuid, 'ACTIVE', '22222222-2222-2222-2222-222222222222'::uuid, 'OBJECTS',  'Товары/Инструменты/Отвертки', 'Набор отверток', 150,  'Продаю отвертки!'),
   ('cccccccc-cccc-cccc-cccc-cccccccccccc'::uuid, 'ACTIVE', '33333333-3333-3333-3333-333333333333'::uuid, 'SERVICES', 'Услуги/Образование/Программирование', 'Репетитор по программированию', 2500, 'Я - профессионал)'),
   ('d1111111-1111-1111-1111-111111111111'::uuid, 'ACTIVE', '11111111-1111-1111-1111-111111111111'::uuid, 'SERVICES', 'Услуги/Образование/Математика', 'Репетитор по математике', 2000, 'Помощь с подготовкой к экзаменам по математике и физике. Опыт работы 5 лет.'),
   ('d2222222-2222-2222-2222-222222222222'::uuid, 'ACTIVE', '22222222-2222-2222-2222-222222222222'::uuid, 'OBJECTS',  'Товары/Электроника/Ноутбуки', 'Ноутбук для программирования', 45000, 'Мощный ноутбук для разработки. Intel i7, 16GB RAM, SSD 512GB.'),

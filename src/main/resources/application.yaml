@@ -6,13 +6,20 @@ spring:
     driver-class-name: org.postgresql.Driver
 
   jpa:
+    database: POSTGRESQL
+    show-sql: true  # Показывать SQL для отладки
     hibernate:
       ddl-auto: validate
-    show-sql: true
+    defer-datasource-initialization: false  # НЕ create! Используем существующую схему
     properties:
       hibernate:
-        format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+    open-in-view: false
 
   kafka:
     bootstrap-servers: localhost:9092

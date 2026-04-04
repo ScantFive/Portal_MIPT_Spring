@@ -1,59 +1,110 @@
 package com.mipt.model.advertisement;
 
+import com.mipt.model.advertisement.converter.CategoryConverter;
+import jakarta.persistence.*;
+import java.util.stream.Collectors;
+import lombok.*;
 import java.time.Instant;
-import java.util.Set;
-import java.util.TreeSet;
-import java.util.UUID;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import java.util.*;
 
-@Data
+@Entity
+@Table(name = "advertisements")
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class Advertisement {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private Type type;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private AdvertisementStatus status;
+
+    @Column(name = "author", nullable = false)
     private UUID authorId;
+
+    @Column(nullable = false, length = 255)
     private String name;
+
+    @Column(length = 5000)
     private String description;
+
     private Long price;
-    private Set<String> photoUrls;
-    private Category category; // Теперь одна категория вместо списка
+
+    @Convert(converter = CategoryConverter.class)
+    private Category category;
+
+    @Column(name = "is_favorite")
     private boolean isFavorite;
+
+    @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
-    public Advertisement(UUID uuid, Type type, UUID authorId, String name, String description,
-        Instant createdAt) {
-        this.id = uuid;
-        this.type = type;
-        status = AdvertisementStatus.DRAFT;
-        this.authorId = authorId;
-        this.name = name;
-        this.description = description;
-        this.price = null;
-        this.photoUrls = new TreeSet<>();
-        this.category = null; // Должна быть установлена позже
-        this.isFavorite = false;
-        this.createdAt = createdAt;
+    // Связь с фото
+    @OneToMany(mappedBy = "advertisement", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @OrderBy("displayOrder ASC")
+    @Builder.Default
+    private Set<AdvertisementPhoto> photos = new LinkedHashSet<>();
+
+
+    // Хелпер методы для работы с фото
+    public void addPhoto(String photoUrl) {
+        AdvertisementPhoto photo = AdvertisementPhoto.builder()
+                .advertisement(this)
+                .photoUrl(photoUrl)
+                .displayOrder(this.photos.size())
+                .build();
+        this.photos.add(photo);
     }
 
-    // Методы валидации
+    public void removePhoto(String photoUrl) {
+        this.photos.removeIf(photo -> photo.getPhotoUrl().equals(photoUrl));
+        // Переупорядочиваем
+        int order = 0;
+        for (AdvertisementPhoto photo : this.photos) {
+            photo.setDisplayOrder(order++);
+        }
+    }
+
+    public Set<String> getPhotoUrls() {
+        return photos.stream()
+                .map(AdvertisementPhoto::getPhotoUrl)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    public void setPhotoUrls(Set<String> photoUrls) {
+        this.photos.clear();
+        if (photoUrls != null) {
+            int order = 0;
+            for (String url : photoUrls) {
+                this.photos.add(AdvertisementPhoto.builder()
+                        .advertisement(this)
+                        .photoUrl(url)
+                        .displayOrder(order++)
+                        .build());
+            }
+        }
+    }
+
+    // Валидация (оставляем без изменений)
     public void validateToCreate() {
         validateName();
         validateType();
-        validateCategory(); // Категория обязательна даже при создании
+        validateCategory();
     }
 
     public void validateToPublish() {
         validateToCreate();
         validatePrice();
         validateDescription();
-        validateCategory(); // Убеждаемся, что категория установлена
         validatePhotoUrls();
     }
 
@@ -61,15 +112,11 @@ public class Advertisement {
         if (category == null) {
             throw new IllegalArgumentException("Категория обязательна для объявления");
         }
-
-        // Проверяем, что категория соответствует типу
         Type categoryType = Category.getTypeForCategory(category);
         if (categoryType != null && categoryType != this.type) {
             throw new IllegalArgumentException(
-                String.format("Категория '%s' не подходит для типа '%s'. " +
-                        "Для товаров выберите категорию из раздела 'товары', " +
-                        "для услуг - из раздела 'услуги'",
-                    category.getDisplayName(), type)
+                    String.format("Категория '%s' не подходит для типа '%s'",
+                            category.getDisplayName(), type)
             );
         }
     }
@@ -79,8 +126,7 @@ public class Advertisement {
             throw new IllegalArgumentException("Название объявления не может быть пустым");
         }
         if (name.length() < 3 || name.length() > 250) {
-            throw new IllegalArgumentException(
-                "Название объявления должно быть от 3 до 255 символов");
+            throw new IllegalArgumentException("Название объявления должно быть от 3 до 255 символов");
         }
     }
 
@@ -91,7 +137,7 @@ public class Advertisement {
     }
 
     private void validatePhotoUrls() {
-        if (photoUrls.isEmpty()) {
+        if (getPhotoUrls().isEmpty()) {
             throw new IllegalArgumentException("Добавьте хотя бы одно фото");
         }
     }
@@ -111,7 +157,6 @@ public class Advertisement {
         }
     }
 
-    // Геттеры для удобства
     public String getCategoryName() {
         return category != null ? category.name() : null;
     }

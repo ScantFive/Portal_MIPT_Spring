@@ -4,337 +4,87 @@ import com.mipt.model.advertisement.Advertisement;
 import com.mipt.model.advertisement.AdvertisementStatus;
 import com.mipt.model.advertisement.Category;
 import com.mipt.model.advertisement.Type;
-import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.EmptyResultDataAccessException;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
-@Slf4j
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
 @Repository
-@RequiredArgsConstructor
-public class AdvertisementRepository implements AdvertisementRep {
+public interface AdvertisementRepository extends JpaRepository<Advertisement, UUID> {
 
-    private final JdbcTemplate jdbcTemplate;
+    // ===== Базовые методы поиска (Spring Data JPA реализует автоматически) =====
 
-    private final RowMapper<Advertisement> advertisementRowMapper = (rs, rowNum) -> {
-        Advertisement advertisement = new Advertisement(
-            UUID.fromString(rs.getString("id")),
-            Type.valueOf(rs.getString("type")),
-            UUID.fromString(rs.getString("author")),
-            rs.getString("name"),
-            rs.getString("description"),
-            rs.getTimestamp("created_at").toInstant()
-        );
+    List<Advertisement> findByAuthorId(UUID authorId);
 
-        advertisement.setStatus(AdvertisementStatus.valueOf(rs.getString("status")));
+    List<Advertisement> findByStatus(AdvertisementStatus status);
 
-        long price = rs.getLong("price");
-        if (!rs.wasNull()) {
-            advertisement.setPrice(price);
-        }
+    List<Advertisement> findByCategory(Category category);
 
-        String categoryStr = rs.getString("category");
-        if (categoryStr != null && !categoryStr.trim().isEmpty()) {
-            advertisement.setCategory(Category.fromNameSafe(categoryStr));
-        }
+    List<Advertisement> findByType(Type type);
 
-        advertisement.setFavorite(rs.getBoolean("is_favorite"));
+    List<Advertisement> findByIsFavoriteTrue();
 
-        return advertisement;
-    };
+    Optional<Advertisement> findById(UUID id);
 
-    @Override
+    boolean existsById(UUID id);
+
+    // ===== Методы с пагинацией и сортировкой =====
+
+    List<Advertisement> findAllByOrderByCreatedAtDesc();
+
+    List<Advertisement> findByStatusOrderByCreatedAtDesc(AdvertisementStatus status);
+
+    // ===== Кастомные запросы через @Query =====
+
+    @Query("SELECT a FROM Advertisement a WHERE a.status = 'ACTIVE' AND a.category = :category")
+    List<Advertisement> findActiveByCategory(@Param("category") Category category);
+
+    @Query("SELECT a FROM Advertisement a WHERE a.status = 'ACTIVE' AND a.price BETWEEN :minPrice AND :maxPrice")
+    List<Advertisement> findInPriceRange(@Param("minPrice") Long minPrice, @Param("maxPrice") Long maxPrice);
+
+    @Query("SELECT a FROM Advertisement a WHERE a.status = 'ACTIVE' AND LOWER(a.name) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+    List<Advertisement> searchByName(@Param("keyword") String keyword);
+
+    // Полнотекстовый поиск (native query, использует вашу search_vector колонку)
+    @Query(value = """
+        SELECT * FROM advertisements a 
+        WHERE a.status = 'ACTIVE' 
+        AND a.search_vector @@ plainto_tsquery('russian', :query)
+        ORDER BY ts_rank(a.search_vector, plainto_tsquery('russian', :query)) DESC
+        """, nativeQuery = true)
+    List<Advertisement> fullTextSearch(@Param("query") String query);
+
+    // ===== Методы для обновления (требуют @Modifying и @Transactional) =====
+
+    @Modifying
     @Transactional
-    public Advertisement save(Advertisement advertisement) {
-        log.debug("Saving advertisement: {}", advertisement.getId());
+    @Query("UPDATE Advertisement a SET a.price = :price WHERE a.id = :id")
+    int updatePrice(@Param("id") UUID id, @Param("price") Long price);
 
-        if (advertisement.getId() == null) {
-            advertisement.setId(UUID.randomUUID());
-        }
-
-        String sql = """
-            INSERT INTO advertisements (id, status, author, type, category, name, price, description, is_favorite, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """;
-
-        jdbcTemplate.update(sql,
-            advertisement.getId(),
-            advertisement.getStatus().name(),
-            advertisement.getAuthorId(),
-            advertisement.getType().name(),
-            advertisement.getCategory() != null ?
-                advertisement.getCategory().getDisplayName() : null, // Сохраняем displayName, не name()
-            advertisement.getName(),
-            advertisement.getPrice(),
-            advertisement.getDescription(),
-            advertisement.isFavorite(),
-            Timestamp.from(advertisement.getCreatedAt())
-        );
-        savePhotos(advertisement);
-
-        return findById(advertisement.getId())
-            .orElseThrow(() -> new RuntimeException("Failed to save advertisement"));
-    }
-
-    @Override
-    public Optional<Advertisement> findById(UUID id) {
-        String sql = "SELECT * FROM advertisements WHERE id = ?";
-
-        try {
-            Advertisement advertisement = jdbcTemplate.queryForObject(sql, advertisementRowMapper, id);
-            if (advertisement != null) {
-                loadPhotos(advertisement);
-            }
-            return Optional.ofNullable(advertisement);
-        } catch (EmptyResultDataAccessException e) {
-            return Optional.empty();
-        }
-    }
-
-    @Override
-    public List<Advertisement> findAll() {
-        String sql = "SELECT * FROM advertisements ORDER BY created_at DESC";
-        List<Advertisement> advertisements = jdbcTemplate.query(sql, advertisementRowMapper);
-        advertisements.forEach(this::loadPhotos);
-        return advertisements;
-    }
-
-    @Override
-    public List<Advertisement> findByAuthorId(UUID authorId) {
-        String sql = "SELECT * FROM advertisements WHERE author = ? ORDER BY created_at DESC";
-        List<Advertisement> advertisements = jdbcTemplate.query(sql, advertisementRowMapper, authorId);
-        advertisements.forEach(this::loadPhotos);
-        return advertisements;
-    }
-
-    @Override
-    public List<Advertisement> findByStatus(AdvertisementStatus status) {
-        String sql = "SELECT * FROM advertisements WHERE status = ? ORDER BY created_at DESC";
-        List<Advertisement> advertisements = jdbcTemplate.query(sql, advertisementRowMapper, status.name());
-        advertisements.forEach(this::loadPhotos);
-        return advertisements;
-    }
-
-    @Override
-    public List<Advertisement> findByCategory(Category category) {
-        String sql = "SELECT * FROM advertisements WHERE category = ? ORDER BY created_at DESC";
-        List<Advertisement> advertisements = jdbcTemplate.query(sql, advertisementRowMapper, category.name());
-        advertisements.forEach(this::loadPhotos);
-        return advertisements;
-    }
-
-    @Override
-    public List<Advertisement> findByType(Type type) {
-        String sql = "SELECT * FROM advertisements WHERE type = ? ORDER BY created_at DESC";
-        List<Advertisement> advertisements = jdbcTemplate.query(sql, advertisementRowMapper, type.name());
-        advertisements.forEach(this::loadPhotos);
-        return advertisements;
-    }
-
-    @Override
-    public List<Advertisement> findFavorites() {
-        String sql = "SELECT * FROM advertisements WHERE is_favorite = true ORDER BY created_at DESC";
-        List<Advertisement> advertisements = jdbcTemplate.query(sql, advertisementRowMapper);
-        advertisements.forEach(this::loadPhotos);
-        return advertisements;
-    }
-
-    @Override
+    @Modifying
     @Transactional
-    public Advertisement update(Advertisement advertisement) {
-        log.debug("Updating advertisement: {}", advertisement.getId());
+    @Query(value = "UPDATE advertisements SET is_favorite = NOT is_favorite WHERE id = :id", nativeQuery = true)
+    int toggleFavorite(@Param("id") UUID id);
 
-        String sql = """
-            UPDATE advertisements 
-            SET status = ?, type = ?, category = ?, name = ?, price = ?, 
-                description = ?, is_favorite = ?
-            WHERE id = ?
-            """;
-
-        int updated = jdbcTemplate.update(sql,
-            advertisement.getStatus().name(),
-            advertisement.getType().name(),
-            advertisement.getCategory() != null ?
-                advertisement.getCategory().getDisplayName() : null, // Здесь тоже displayName
-            advertisement.getName(),
-            advertisement.getPrice(),
-            advertisement.getDescription(),
-            advertisement.isFavorite(),
-            advertisement.getId()
-        );
-
-        if (updated == 0) {
-            throw new IllegalArgumentException("Advertisement not found: " + advertisement.getId());
-        }
-
-        // Обновляем фото (удаляем старые и добавляем новые)
-        deletePhotos(advertisement.getId());
-        savePhotos(advertisement);
-
-        return findById(advertisement.getId())
-            .orElseThrow(() -> new RuntimeException("Failed to update advertisement"));
-    }
-
-    @Override
+    @Modifying
     @Transactional
-    public void deleteById(UUID id) {
-        log.debug("Deleting advertisement: {}", id);
-        deletePhotos(id);
-        jdbcTemplate.update("DELETE FROM advertisements WHERE id = ?", id);
-    }
+    @Query("UPDATE Advertisement a SET a.status = :status WHERE a.id = :id")
+    int updateStatus(@Param("id") UUID id, @Param("status") AdvertisementStatus status);
 
-    @Override
-    @Transactional
-    public Advertisement addPhoto(UUID advertisementId, String photoUrl) {
-        log.debug("Adding photo to advertisement: {}", advertisementId);
+    // ===== Агрегационные методы =====
 
-        Integer maxOrder = jdbcTemplate.queryForObject(
-            "SELECT COALESCE(MAX(display_order), -1) FROM advertisement_photos WHERE advertisement_id = ?",
-            Integer.class, advertisementId);
+    long countByStatus(AdvertisementStatus status);
 
-        int nextOrder = (maxOrder != null ? maxOrder : -1) + 1;
+    long countByAuthorId(UUID authorId);
 
-        jdbcTemplate.update(
-            "INSERT INTO advertisement_photos (advertisement_id, photo_url, display_order) VALUES (?, ?, ?)",
-            advertisementId, photoUrl, nextOrder
-        );
+    @Query("SELECT AVG(a.price) FROM Advertisement a WHERE a.status = 'ACTIVE' AND a.category = :category")
+    Double getAveragePriceByCategory(@Param("category") Category category);
 
-        return findById(advertisementId)
-            .orElseThrow(() -> new RuntimeException("Advertisement not found"));
-    }
-
-    @Override
-    @Transactional
-    public Advertisement removePhoto(UUID advertisementId, String photoUrl) {
-        log.debug("Removing photo from advertisement: {}", advertisementId);
-
-        int deleted = jdbcTemplate.update(
-            "DELETE FROM advertisement_photos WHERE advertisement_id = ? AND photo_url = ?",
-            advertisementId, photoUrl
-        );
-
-        if (deleted == 0) {
-            throw new IllegalArgumentException("Photo not found: " + photoUrl);
-        }
-
-        // Переупорядочиваем оставшиеся фото
-        reorderPhotos(advertisementId);
-
-        return findById(advertisementId)
-            .orElseThrow(() -> new RuntimeException("Advertisement not found"));
-    }
-
-    @Override
-    @Transactional
-    public Advertisement updatePrice(UUID advertisementId, Long price) {
-        log.debug("Updating price for advertisement: {}", advertisementId);
-
-        jdbcTemplate.update(
-            "UPDATE advertisements SET price = ? WHERE id = ?",
-            price, advertisementId
-        );
-
-        return findById(advertisementId)
-            .orElseThrow(() -> new RuntimeException("Advertisement not found"));
-    }
-
-    @Override
-    @Transactional
-    public Advertisement setFavorite(UUID advertisementId, boolean favorite) {
-        log.debug("Setting favorite={} for advertisement: {}", favorite, advertisementId);
-
-        jdbcTemplate.update(
-            "UPDATE advertisements SET is_favorite = ? WHERE id = ?",
-            favorite, advertisementId
-        );
-
-        return findById(advertisementId)
-            .orElseThrow(() -> new RuntimeException("Advertisement not found"));
-    }
-
-    @Override
-    @Transactional
-    public Advertisement toggleFavorite(UUID advertisementId) {
-        log.debug("Toggling favorite for advertisement: {}", advertisementId);
-
-        jdbcTemplate.update(
-            "UPDATE advertisements SET is_favorite = NOT is_favorite WHERE id = ?",
-            advertisementId
-        );
-
-        return findById(advertisementId)
-            .orElseThrow(() -> new RuntimeException("Advertisement not found"));
-    }
-
-    @Override
-    public List<Category> getAllCategories() {
-        return Arrays.asList(Category.values());
-    }
-
-    @Override
-    public List<String> getAllCategoryGroups(Type type) {
-        return Category.getGroupsForType(type);
-    }
-
-    @Override
-    public boolean existsById(UUID id) {
-        Integer count = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM advertisements WHERE id = ?",
-            Integer.class, id
-        );
-        return count != null && count > 0;
-    }
-
-    // Вспомогательные методы
-
-    private void savePhotos(Advertisement advertisement) {
-        String sql = "INSERT INTO advertisement_photos (advertisement_id, photo_url, display_order) VALUES (?, ?, ?)";
-
-        List<Object[]> batchArgs = new ArrayList<>();
-        int order = 0;
-        for (String photoUrl : advertisement.getPhotoUrls()) {
-            batchArgs.add(new Object[]{advertisement.getId(), photoUrl, order++});
-        }
-
-        if (!batchArgs.isEmpty()) {
-            jdbcTemplate.batchUpdate(sql, batchArgs);
-        }
-    }
-
-    private void loadPhotos(Advertisement advertisement) {
-        String sql = "SELECT photo_url FROM advertisement_photos WHERE advertisement_id = ? ORDER BY display_order";
-
-        List<String> photos = jdbcTemplate.queryForList(sql, String.class, advertisement.getId());
-        advertisement.getPhotoUrls().clear();
-        advertisement.getPhotoUrls().addAll(photos);
-    }
-
-    private void deletePhotos(UUID advertisementId) {
-        jdbcTemplate.update("DELETE FROM advertisement_photos WHERE advertisement_id = ?", advertisementId);
-    }
-
-    private void reorderPhotos(UUID advertisementId) {
-        String sql = """
-            WITH ordered AS (
-                SELECT id, ROW_NUMBER() OVER (ORDER BY display_order) - 1 as new_order
-                FROM advertisement_photos 
-                WHERE advertisement_id = ?
-            )
-            UPDATE advertisement_photos ap
-            SET display_order = o.new_order
-            FROM ordered o
-            WHERE ap.id = o.id
-            """;
-
-        jdbcTemplate.update(sql, advertisementId);
-    }
+    // ===== Проверочные методы =====
 }
