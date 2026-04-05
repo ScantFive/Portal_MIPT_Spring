@@ -1,7 +1,7 @@
 package com.mipt.search.repository;
 
 import com.mipt.advertisement.model.Advertisement;
-import com.mipt.advertisement.repository.AdvertisementJpaRepository;
+import com.mipt.advertisement.repository.AdvertisementRepository;
 import com.mipt.search.model.SearchSuggestion;
 import com.mipt.search.model.SearchHistory;
 import com.mipt.search.model.SuggestionType;
@@ -23,8 +23,8 @@ public class SearchSuggestionRepository {
     return SpringContext.getBean(SearchHistoryJpaRepository.class);
   }
 
-  private static AdvertisementJpaRepository adRepository() {
-    return SpringContext.getBean(AdvertisementJpaRepository.class);
+  private static AdvertisementRepository adRepository() {
+    return SpringContext.getBean(AdvertisementRepository.class);
   }
 
   /**

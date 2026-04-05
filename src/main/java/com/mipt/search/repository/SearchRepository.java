@@ -1,7 +1,7 @@
 package com.mipt.search.repository;
 
 import com.mipt.advertisement.model.Advertisement;
-import com.mipt.advertisement.repository.AdvertisementJpaRepository;
+import com.mipt.advertisement.repository.AdvertisementRepository;
 import com.mipt.mainpage.model.ShortAdvert;
 import com.mipt.mainpage.model.Favorite;
 import com.mipt.mainpage.repository.FavoriteJpaRepository;
@@ -19,8 +19,8 @@ public class SearchRepository {
 
   private static final int DESCRIPTION_PREVIEW_LENGTH = 100;
 
-  private static AdvertisementJpaRepository adRepository() {
-    return SpringContext.getBean(AdvertisementJpaRepository.class);
+  private static AdvertisementRepository adRepository() {
+    return SpringContext.getBean(AdvertisementRepository.class);
   }
 
   private static FavoriteJpaRepository favoriteRepository() {

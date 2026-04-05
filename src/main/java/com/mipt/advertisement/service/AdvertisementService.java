@@ -1,207 +1,302 @@
 package com.mipt.advertisement.service;
 
+import com.mipt.advertisement.controller.dto.AdvertisementPatchRequest;
+import com.mipt.advertisement.controller.dto.AdvertisementRequest;
+import com.mipt.advertisement.controller.dto.AdvertisementResponse;
+import com.mipt.advertisement.mapper.AdvertisementMapper;
 import com.mipt.advertisement.event.AdvertisementEvent;
+import com.mipt.advertisement.exception.AdvertisementNotFoundException;
 import com.mipt.advertisement.model.Advertisement;
 import com.mipt.advertisement.model.AdvertisementStatus;
 import com.mipt.advertisement.model.Category;
-import com.mipt.advertisement.repository.AdvertisementJpaRepository;
-import com.mipt.advertisement.repository.AdvertisementRep;
+import com.mipt.advertisement.model.Type;
+import com.mipt.advertisement.repository.AdvertisementRepository;
+import java.util.Arrays;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
-import java.util.*;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional
-public class AdvertisementService implements AdvertisementRep {
+public class AdvertisementService {
 
-  private final AdvertisementJpaRepository repository;
+  private final AdvertisementRepository advertisementRepository;
+  private final AdvertisementMapper advertisementMapper;
   private final KafkaEventPublisher eventPublisher;
 
-  @Override
-  public Advertisement create(Advertisement advertisement) {
+  @Transactional
+  public AdvertisementResponse createAdvertisement(AdvertisementRequest request) {
+    log.info("Creating new advertisement");
+
+    Advertisement advertisement = advertisementMapper.toEntity(request);
     advertisement.validateToCreate();
-    if (advertisement.getId() == null) {
-      advertisement.setId(UUID.randomUUID());
-    }
-    if (advertisement.getCreatedAt() == null) {
-      advertisement.setCreatedAt(Instant.now());
-    }
-    if (advertisement.getStatus() == null) {
-      advertisement.setStatus(AdvertisementStatus.DRAFT);
-    }
-    if (advertisement.getPhotoUrls() == null) {
-      advertisement.setPhotoUrls(new HashSet<>());
-    }
-    Advertisement saved = repository.save(advertisement);
+
+    Advertisement saved = advertisementRepository.save(advertisement);
     eventPublisher.publishEvent(AdvertisementEvent.created(saved));
-    return saved;
+    log.info("Advertisement created with id: {}", saved.getId());
+    return advertisementMapper.toResponse(saved);
   }
 
-  @Override
-  public Advertisement publish(Advertisement advertisement) {
+  public AdvertisementResponse getAdvertisement(UUID id) {
+    log.debug("Getting advertisement by id: {}", id);
+
+    Advertisement advertisement = advertisementRepository.findById(id)
+            .orElseThrow(() -> new AdvertisementNotFoundException(id));
+
+    return advertisementMapper.toResponse(advertisement);
+  }
+
+  @Transactional(readOnly = true)  // ← Добавить эту аннотацию
+  public List<AdvertisementResponse> getAllAdvertisements() {
+    log.debug("Getting all advertisements");
+
+    List<Advertisement> advertisements = advertisementRepository.findAllByOrderByCreatedAtDesc();
+
+    // Инициализируем фото внутри транзакции
+    advertisements.forEach(ad -> ad.getPhotos().size()); // Принудительно загружаем фото
+
+    return advertisements.stream()
+            .map(advertisementMapper::toResponse)
+            .collect(Collectors.toList());
+  }
+
+  public List<AdvertisementResponse> getAdvertisementsByAuthor(UUID authorId) {
+    log.debug("Getting advertisements by author: {}", authorId);
+
+    return advertisementRepository.findByAuthorId(authorId).stream()
+            .map(advertisementMapper::toResponse)
+            .collect(Collectors.toList());
+  }
+
+  public List<AdvertisementResponse> getAdvertisementsByStatus(AdvertisementStatus status) {
+    log.debug("Getting advertisements by status: {}", status);
+
+    return advertisementRepository.findByStatus(status).stream()
+            .map(advertisementMapper::toResponse)
+            .collect(Collectors.toList());
+  }
+
+  public List<AdvertisementResponse> getAdvertisementsByCategory(String categoryName) {
+    log.debug("Getting advertisements by category: {}", categoryName);
+
+    Category category = Category.fromNameSafe(categoryName);
+    if (category == null) {
+      throw new IllegalArgumentException("Invalid category: " + categoryName);
+    }
+
+    return advertisementRepository.findByCategory(category).stream()
+            .map(advertisementMapper::toResponse)
+            .collect(Collectors.toList());
+  }
+
+  public List<AdvertisementResponse> getAdvertisementsByType(Type type) {
+    log.debug("Getting advertisements by type: {}", type);
+
+    return advertisementRepository.findByType(type).stream()
+            .map(advertisementMapper::toResponse)
+            .collect(Collectors.toList());
+  }
+
+  public List<AdvertisementResponse> getFavoriteAdvertisements() {
+    log.debug("Getting favorite advertisements");
+
+    return advertisementRepository.findByIsFavoriteTrue().stream()
+            .map(advertisementMapper::toResponse)
+            .collect(Collectors.toList());
+  }
+
+  @Transactional
+  public AdvertisementResponse updateAdvertisement(UUID id, AdvertisementRequest request) {
+    log.info("Updating advertisement: {}", id);
+
+    Advertisement existing = advertisementRepository.findById(id)
+            .orElseThrow(() -> new AdvertisementNotFoundException(id));
+
+    existing.setName(request.getName());
+    existing.setDescription(request.getDescription());
+    existing.setPrice(request.getPrice());
+
+    Category newCategory = Category.fromNameSafe(request.getCategory());
+    if (newCategory == null) {
+      throw new IllegalArgumentException("Invalid category: " + request.getCategory());
+    }
+    existing.setCategory(newCategory);
+
+    if (request.getPhotoUrls() != null) {
+      existing.setPhotoUrls(request.getPhotoUrls());
+    }
+
+    existing.validateToCreate();
+
+    Advertisement updated = advertisementRepository.save(existing);
+    eventPublisher.publishEvent(AdvertisementEvent.updated(updated));
+    log.info("Advertisement updated: {}", id);
+
+    return advertisementMapper.toResponse(updated);
+  }
+  @Transactional
+  public AdvertisementResponse patchAdvertisement(UUID id, AdvertisementPatchRequest patchRequest) {
+    log.info("Partially updating advertisement: {}", id);
+
+    Advertisement existing = advertisementRepository.findById(id)
+            .orElseThrow(() -> new AdvertisementNotFoundException(id));
+
+    // Применяем только те поля, которые пришли в запросе
+    advertisementMapper.patchEntity(existing, patchRequest);
+
+    // Валидация (опционально - только если обновили обязательные поля)
+    if (patchRequest.getName() != null || patchRequest.getCategory() != null) {
+      existing.validateToCreate();
+    }
+
+    Advertisement updated = advertisementRepository.save(existing);
+    log.info("Advertisement partially updated: {}", id);
+
+    return advertisementMapper.toResponse(updated);
+  }
+
+  @Transactional
+  public AdvertisementResponse publishAdvertisement(UUID id) {
+    log.info("Publishing advertisement: {}", id);
+
+    Advertisement advertisement = advertisementRepository.findById(id)
+            .orElseThrow(() -> new AdvertisementNotFoundException(id));
+
     advertisement.validateToPublish();
     advertisement.setStatus(AdvertisementStatus.ACTIVE);
-    Advertisement updated = repository.save(advertisement);
+
+    Advertisement updated = advertisementRepository.save(advertisement);
+
     eventPublisher.publishEvent(AdvertisementEvent.published(updated));
-    return updated;
+
+    return advertisementMapper.toResponse(updated);
   }
 
-  @Override
-  public Advertisement pause(Advertisement advertisement) {
+  @Transactional
+  public AdvertisementResponse pauseAdvertisement(UUID id) {
+    log.info("Pausing advertisement: {}", id);
+
+    Advertisement advertisement = advertisementRepository.findById(id)
+            .orElseThrow(() -> new AdvertisementNotFoundException(id));
+
     if (advertisement.getStatus() != AdvertisementStatus.ACTIVE) {
-      throw new IllegalArgumentException(
-          "Can only pause active advertisements. Current status: " + advertisement.getStatus());
+      throw new IllegalStateException(
+              "Can only pause active advertisements. Current status: "
+                      + advertisement.getStatus()
+      );
     }
+
     advertisement.setStatus(AdvertisementStatus.PAUSED);
-    Advertisement updated = repository.save(advertisement);
+    Advertisement updated = advertisementRepository.save(advertisement);
     eventPublisher.publishEvent(AdvertisementEvent.paused(updated));
-    return updated;
+    return advertisementMapper.toResponse(updated);
   }
 
-  @Override
-  public Optional<Advertisement> findById(UUID id) {
-    return repository.findById(id);
-  }
+  @Transactional
+  public void deleteAdvertisement(UUID id) {
+    log.info("Deleting advertisement: {}", id);
 
-  @Override
-  public List<Advertisement> findByAuthorId(UUID authorId) {
-    return repository.findByAuthorId(authorId);
-  }
-
-  @Override
-  public List<Advertisement> findByStatus(AdvertisementStatus status) {
-    return repository.findByStatus(status);
-  }
-
-  @Override
-  public List<Advertisement> findFavorites() {
-    return repository.findByIsFavoriteTrue();
-  }
-
-  @Override
-  public List<Advertisement> findByCategory(Category category) {
-    return repository.findByCategory(category);
-  }
-
-  @Override
-  public Category getCategory(UUID advertisementId) {
-    return repository.findById(advertisementId)
-        .map(Advertisement::getCategory)
-        .orElse(null);
-  }
-
-  @Override
-  public Advertisement setCategory(UUID advertisementId, Category category) {
-    Advertisement advertisement = repository.findById(advertisementId)
-        .orElseThrow(() -> new IllegalArgumentException("Advertisement not found: " + advertisementId));
-    advertisement.setCategory(category);
-    return repository.save(advertisement);
-  }
-
-  @Override
-  public Set<Category> getAllCategories() {
-    List<Category> categories = repository.findAllCategories();
-    return new HashSet<>(categories);
-  }
-
-  @Override
-  public Advertisement update(Advertisement advertisement) {
-    Advertisement updated = repository.save(advertisement);
-    eventPublisher.publishEvent(AdvertisementEvent.updated(updated));
-    return updated;
-  }
-
-  @Override
-  public void delete(UUID id) {
-    Advertisement advertisement = repository.findById(id)
-        .orElseThrow(() -> new IllegalArgumentException("Advertisement not found: " + id));
+    if (!advertisementRepository.existsById(id)) {
+      throw new AdvertisementNotFoundException(id);
+    }
+    Advertisement advertisement = advertisementRepository.findById(id)
+            .orElseThrow(() -> new AdvertisementNotFoundException(id));
     eventPublisher.publishEvent(AdvertisementEvent.deleted(advertisement));
-    repository.deleteById(id);
+    advertisementRepository.deleteById(id);
   }
 
-  @Override
-  public Advertisement addPhotoUrl(UUID advertisementId, String photoUrl) {
-    Advertisement advertisement = repository.findById(advertisementId)
-        .orElseThrow(() -> new IllegalArgumentException("Advertisement not found: " + advertisementId));
-    if (advertisement.getPhotoUrls() == null) {
-      advertisement.setPhotoUrls(new HashSet<>());
-    }
-    advertisement.getPhotoUrls().add(photoUrl);
-    Advertisement updated = repository.save(advertisement);
+  @Transactional
+  public AdvertisementResponse addPhoto(UUID id, String photoUrl) {
+    log.debug("Adding photo to advertisement: {}", id);
+
+    Advertisement advertisement = advertisementRepository.findById(id)
+            .orElseThrow(() -> new AdvertisementNotFoundException(id));
+
+    advertisement.addPhoto(photoUrl);
+    Advertisement updated = advertisementRepository.save(advertisement);
     eventPublisher.publishEvent(AdvertisementEvent.photoAdded(
-        advertisement.getId(),
-        advertisement.getName(),
-        advertisement.getAuthorId(),
-        photoUrl));
-    return updated;
+            id, advertisement.getName(), advertisement.getAuthorId(), photoUrl));
+    return advertisementMapper.toResponse(updated);
   }
 
-  @Override
-  public Advertisement removePhotoUrl(UUID advertisementId, String photoUrl) {
-    Advertisement advertisement = repository.findById(advertisementId)
-        .orElseThrow(() -> new IllegalArgumentException("Advertisement not found: " + advertisementId));
-    if (advertisement.getPhotoUrls() != null) {
-      advertisement.getPhotoUrls().remove(photoUrl);
-    }
-    Advertisement updated = repository.save(advertisement);
+  @Transactional
+  public AdvertisementResponse removePhoto(UUID id, String photoUrl) {
+    log.debug("Removing photo from advertisement: {}", id);
+
+    Advertisement advertisement = advertisementRepository.findById(id)
+            .orElseThrow(() -> new AdvertisementNotFoundException(id));
+
+    advertisement.removePhoto(photoUrl);
+    Advertisement updated = advertisementRepository.save(advertisement);
     eventPublisher.publishEvent(AdvertisementEvent.photoRemoved(
-        advertisement.getId(),
-        advertisement.getName(),
-        advertisement.getAuthorId(),
-        photoUrl));
-    return updated;
+            id, advertisement.getName(), advertisement.getAuthorId(), photoUrl));
+    return advertisementMapper.toResponse(updated);
   }
 
-  @Override
-  public Advertisement updatePrice(UUID advertisementId, Long price) {
-    Advertisement advertisement = repository.findById(advertisementId)
-        .orElseThrow(() -> new IllegalArgumentException("Advertisement not found: " + advertisementId));
+  @Transactional
+  public AdvertisementResponse updatePrice(UUID id, Long price) {
+    log.debug("Updating price for advertisement: {}", id);
+    Advertisement advertisement = advertisementRepository.findById(id)
+            .orElseThrow(() -> new AdvertisementNotFoundException(id));
     Long oldPrice = advertisement.getPrice();
-    advertisement.setPrice(price);
-    Advertisement updated = repository.save(advertisement);
+    if (!advertisementRepository.existsById(id)) {
+      throw new AdvertisementNotFoundException(id);
+    }
+
+    if (price != null && price <= 0) {
+      throw new IllegalArgumentException("Price must be positive");
+    }
+
+    int updated = advertisementRepository.updatePrice(id, price);
+    if (updated == 0) {
+      throw new RuntimeException("Failed to update price");
+    }
     eventPublisher.publishEvent(AdvertisementEvent.priceChanged(
-        advertisement.getId(),
-        advertisement.getName(),
-        advertisement.getAuthorId(),
-        oldPrice,
-        price));
-    return updated;
+            id, advertisement.getName(), advertisement.getAuthorId(), oldPrice, price));
+    return getAdvertisement(id);
   }
 
-  @Override
-  public Advertisement toggleFavorite(UUID advertisementId) {
-    Advertisement advertisement = repository.findById(advertisementId)
-        .orElseThrow(() -> new IllegalArgumentException("Advertisement not found: " + advertisementId));
-    advertisement.setFavorite(!advertisement.isFavorite());
-    Advertisement updated = repository.save(advertisement);
+  @Transactional
+  public AdvertisementResponse setFavorite(UUID id, boolean favorite) {
+    log.debug("Setting favorite={} for advertisement: {}", favorite, id);
+
+    Advertisement advertisement = advertisementRepository.findById(id)
+            .orElseThrow(() -> new AdvertisementNotFoundException(id));
+
+    advertisement.setFavorite(favorite);
+    Advertisement updated = advertisementRepository.save(advertisement);
     eventPublisher.publishEvent(AdvertisementEvent.favoriteToggled(
-        advertisement.getId(),
-        advertisement.getName(),
-        advertisement.getAuthorId(),
-        updated.isFavorite()));
-    return updated;
+            id, advertisement.getName(), advertisement.getAuthorId(), favorite));
+    return advertisementMapper.toResponse(updated);
   }
 
-  @Override
-  public Advertisement setFavorite(UUID advertisementId, boolean isFavorite) {
-    Advertisement advertisement = repository.findById(advertisementId)
-        .orElseThrow(() -> new IllegalArgumentException("Advertisement not found: " + advertisementId));
-    advertisement.setFavorite(isFavorite);
-    Advertisement updated = repository.save(advertisement);
+  @Transactional
+  public AdvertisementResponse toggleFavorite(UUID id) {
+    log.debug("Toggling favorite for advertisement: {}", id);
+    Advertisement advertisement = advertisementRepository.findById(id)
+            .orElseThrow(() -> new AdvertisementNotFoundException(id));
+
+    int updated = advertisementRepository.toggleFavorite(id);
+    if (updated == 0) {
+      throw new AdvertisementNotFoundException(id);
+    }
     eventPublisher.publishEvent(AdvertisementEvent.favoriteToggled(
-        advertisement.getId(),
-        advertisement.getName(),
-        advertisement.getAuthorId(),
-        isFavorite));
-    return updated;
+            id, advertisement.getName(), advertisement.getAuthorId(),
+            advertisement.isFavorite()));
+    return getAdvertisement(id);
   }
 
-  @Override
-  public void clear() {
-    repository.deleteAll();
+  public List<Category> getAllCategories() {
+    return Arrays.asList(Category.values());
+  }
+
+  public List<String> getCategoryGroups(Type type) {
+    return Category.getGroupsForType(type);
   }
 }

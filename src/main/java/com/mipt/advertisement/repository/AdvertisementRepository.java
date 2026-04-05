@@ -3,157 +3,88 @@ package com.mipt.advertisement.repository;
 import com.mipt.advertisement.model.Advertisement;
 import com.mipt.advertisement.model.AdvertisementStatus;
 import com.mipt.advertisement.model.Category;
-import com.mipt.util.SpringContext;
-import java.sql.SQLException;
-import java.time.Instant;
-import java.util.HashSet;
+import com.mipt.advertisement.model.Type;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
-import java.util.TreeSet;
 import java.util.UUID;
 
-public class AdvertisementRepository implements AdvertisementRep {
+@Repository
+public interface AdvertisementRepository extends JpaRepository<Advertisement, UUID> {
 
-  private AdvertisementJpaRepository repository() {
-    return SpringContext.getBean(AdvertisementJpaRepository.class);
-  }
+  // ===== Базовые методы поиска (Spring Data JPA реализует автоматически) =====
 
-  @Override
-  public Advertisement create(Advertisement advertisement) {
-    advertisement.validateToCreate();
-    if (advertisement.getId() == null) {
-      advertisement.setId(UUID.randomUUID());
-    }
-    if (advertisement.getCreatedAt() == null) {
-      advertisement.setCreatedAt(Instant.now());
-    }
-    if (advertisement.getStatus() == null) {
-      advertisement.setStatus(AdvertisementStatus.DRAFT);
-    }
-    if (advertisement.getPhotoUrls() == null) {
-      advertisement.setPhotoUrls(new TreeSet<>());
-    }
-    return repository().save(advertisement);
-  }
+  List<Advertisement> findByAuthorId(UUID authorId);
 
-  @Override
-  public Advertisement publish(Advertisement advertisement) {
-    advertisement.validateToPublish();
-    advertisement.setStatus(AdvertisementStatus.ACTIVE);
-    return repository().save(advertisement);
-  }
+  List<Advertisement> findByStatus(AdvertisementStatus status);
 
-  @Override
-  public Advertisement pause(Advertisement advertisement) {
-    if (advertisement.getStatus() != AdvertisementStatus.ACTIVE) {
-      throw new IllegalArgumentException(
-          "Can only pause active advertisements. Current status: " + advertisement.getStatus());
-    }
-    advertisement.setStatus(AdvertisementStatus.PAUSED);
-    return repository().save(advertisement);
-  }
+  List<Advertisement> findByCategory(Category category);
 
-  @Override
-  public Optional<Advertisement> findById(UUID id) {
-    return repository().findById(id);
-  }
+  List<Advertisement> findByType(Type type);
 
-  @Override
-  public List<Advertisement> findByAuthorId(UUID authorId) {
-    return repository().findByAuthorId(authorId);
-  }
+  List<Advertisement> findByIsFavoriteTrue();
 
-  @Override
-  public List<Advertisement> findByStatus(AdvertisementStatus status) {
-    return repository().findByStatus(status);
-  }
+  Optional<Advertisement> findById(UUID id);
 
-  @Override
-  public List<Advertisement> findFavorites() {
-    return repository().findByIsFavoriteTrue();
-  }
+  boolean existsById(UUID id);
 
-  @Override
-  public List<Advertisement> findByCategory(Category category) {
-    return repository().findByCategory(category);
-  }
+  // ===== Методы с пагинацией и сортировкой =====
 
-  @Override
-  public Category getCategory(UUID advertisementId) {
-    return repository().findById(advertisementId).map(Advertisement::getCategory).orElse(null);
-  }
+  List<Advertisement> findAllByOrderByCreatedAtDesc();
 
-  @Override
-  public Advertisement setCategory(UUID advertisementId, Category category) {
-    Advertisement ad = repository().findById(advertisementId)
-        .orElseThrow(() -> new RuntimeException("Advertisement not found: " + advertisementId));
-    ad.setCategory(category);
-    return repository().save(ad);
-  }
+  List<Advertisement> findByStatusOrderByCreatedAtDesc(AdvertisementStatus status);
 
-  @Override
-  public Set<Category> getAllCategories() {
-    return new HashSet<>(repository().findAllCategories());
-  }
+  // ===== Кастомные запросы через @Query =====
 
-  @Override
-  public Advertisement update(Advertisement advertisement) {
-    return repository().save(advertisement);
-  }
+  @Query("SELECT a FROM Advertisement a WHERE a.status = 'ACTIVE' AND a.category = :category")
+  List<Advertisement> findActiveByCategory(@Param("category") Category category);
 
-  @Override
-  public void delete(UUID id) throws SQLException {
-    repository().deleteById(id);
-  }
+  @Query("SELECT a FROM Advertisement a WHERE a.status = 'ACTIVE' AND a.price BETWEEN :minPrice AND :maxPrice")
+  List<Advertisement> findInPriceRange(@Param("minPrice") Long minPrice, @Param("maxPrice") Long maxPrice);
 
-  @Override
-  public Advertisement addPhotoUrl(UUID advertisementId, String photoUrl) {
-    Advertisement ad = repository().findById(advertisementId)
-        .orElseThrow(() -> new RuntimeException("Advertisement not found: " + advertisementId));
-    if (ad.getPhotoUrls() == null) {
-      ad.setPhotoUrls(new TreeSet<>());
-    }
-    ad.getPhotoUrls().add(photoUrl);
-    return repository().save(ad);
-  }
+  @Query("SELECT a FROM Advertisement a WHERE a.status = 'ACTIVE' AND LOWER(a.name) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+  List<Advertisement> searchByName(@Param("keyword") String keyword);
 
-  @Override
-  public Advertisement removePhotoUrl(UUID advertisementId, String photoUrl) {
-    Advertisement ad = repository().findById(advertisementId)
-        .orElseThrow(() -> new RuntimeException("Advertisement not found: " + advertisementId));
-    if (ad.getPhotoUrls() != null) {
-      ad.getPhotoUrls().remove(photoUrl);
-    }
-    return repository().save(ad);
-  }
+  // Полнотекстовый поиск (native query, использует вашу search_vector колонку)
+  @Query(value = """
+        SELECT * FROM advertisements a 
+        WHERE a.status = 'ACTIVE' 
+        AND a.search_vector @@ plainto_tsquery('russian', :query)
+        ORDER BY ts_rank(a.search_vector, plainto_tsquery('russian', :query)) DESC
+        """, nativeQuery = true)
+  List<Advertisement> fullTextSearch(@Param("query") String query);
 
-  @Override
-  public Advertisement updatePrice(UUID advertisementId, Long price) {
-    Advertisement ad = repository().findById(advertisementId)
-        .orElseThrow(() -> new RuntimeException("Advertisement not found: " + advertisementId));
-    ad.setPrice(price);
-    return repository().save(ad);
-  }
+  // ===== Методы для обновления (требуют @Modifying и @Transactional) =====
 
-  @Override
-  public Advertisement toggleFavorite(UUID advertisementId) {
-    Advertisement ad = repository().findById(advertisementId)
-        .orElseThrow(() -> new RuntimeException("Advertisement not found: " + advertisementId));
-    ad.setFavorite(!ad.isFavorite());
-    return repository().save(ad);
-  }
+  @Modifying
+  @Transactional
+  @Query("UPDATE Advertisement a SET a.price = :price WHERE a.id = :id")
+  int updatePrice(@Param("id") UUID id, @Param("price") Long price);
 
-  @Override
-  public Advertisement setFavorite(UUID advertisementId, boolean isFavorite) {
-    Advertisement ad = repository().findById(advertisementId)
-        .orElseThrow(() -> new RuntimeException("Advertisement not found: " + advertisementId));
-    ad.setFavorite(isFavorite);
-    return repository().save(ad);
-  }
+  @Modifying
+  @Transactional
+  @Query(value = "UPDATE advertisements SET is_favorite = NOT is_favorite WHERE id = :id", nativeQuery = true)
+  int toggleFavorite(@Param("id") UUID id);
 
-  @Override
-  public void clear() {
-    repository().deleteAll();
-  }
+  @Modifying
+  @Transactional
+  @Query("UPDATE Advertisement a SET a.status = :status WHERE a.id = :id")
+  int updateStatus(@Param("id") UUID id, @Param("status") AdvertisementStatus status);
+
+  // ===== Агрегационные методы =====
+
+  long countByStatus(AdvertisementStatus status);
+
+  long countByAuthorId(UUID authorId);
+
+  @Query("SELECT AVG(a.price) FROM Advertisement a WHERE a.status = 'ACTIVE' AND a.category = :category")
+  Double getAveragePriceByCategory(@Param("category") Category category);
+
+  // ===== Проверочные методы =====
 }
