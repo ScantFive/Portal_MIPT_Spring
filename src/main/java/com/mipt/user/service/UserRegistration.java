@@ -6,7 +6,9 @@ import com.mipt.wallet.repository.WalletRepository;
 
 import java.util.Optional;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Data
 public class UserRegistration implements Registration {
   private UserRepository userRepository;
@@ -17,8 +19,10 @@ public class UserRegistration implements Registration {
   }
 
   @Override
-  public void register(String login, String email, String password) {
-
+  public void register(User user) {
+    String email = user.getEmail();
+    String login = user.getLogin();
+    String password = user.getHashedPassword();
     if (!email.trim().endsWith("@phystech.edu")) {
       System.out.println("Email не подходит по формату");
       return;
@@ -38,10 +42,9 @@ public class UserRegistration implements Registration {
       System.out.println("Пароль слишком короткий");
       return;
     }
-    User user = new User(login, email, password);
     userRepository.save(user);
     walletRepository.createWithUserId(user.getUserID());
-    System.out.println("Пользователь " + login + " успешно зарегистрирован!");
+      log.info("Пользователь {} успешно зарегистрирован!", login);
   }
 
   @Override
@@ -51,14 +54,14 @@ public class UserRegistration implements Registration {
       User user = userOpt.get();
       user.setActivated(true);
       userRepository.update(user);
-      System.out.println("Пользователь " + email + " активирован");
+        log.info("Пользователь {} активирован", email);
     } else {
-      System.out.println("Пользователь с email " + email + " не найден");
+        log.info("Пользователь с email {} не найден", email);
     }
   }
 
   @Override
   public void toProfile() {
-    System.out.println("Redirecting to user profile...");
+    log.info("Redirecting to user profile...");
   }
 }

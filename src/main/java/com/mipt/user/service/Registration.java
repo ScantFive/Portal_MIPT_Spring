@@ -1,8 +1,10 @@
 package com.mipt.user.service;
 
+import com.mipt.user.model.User;
+
 public interface Registration {
 
-  void register(String login, String email, String password);
+  void register(User user);
 
   void verification(String email);
 

@@ -23,6 +23,7 @@ public class UserService {
     if (user.getUserID() == null) {
       user.setUserID(UUID.randomUUID());
     }
+
     User saved = repository.save(user);
     eventPublisher.publish(UserEvent.registered(saved));
   }
@@ -33,6 +34,9 @@ public class UserService {
 
   public Optional<User> findByEmail(String email) {
     return repository.findByEmail(email.toLowerCase().trim());
+  }
+  public Optional<User> findByLogin(String login){
+    return repository.findByLogin(login.toLowerCase().trim());
   }
 
   public Optional<User> findById(UUID id) {
@@ -57,8 +61,12 @@ public class UserService {
     }
     return false;
   }
-
-  public void clear() {
-    repository.deleteAll();
+  public boolean authenticate(String login, String rawPassword){
+    if (repository.existsByLogin(login)) {
+      Optional<User> userOpt = repository.findByLogin(login);
+      return userOpt.map(user -> user.checkPassword(rawPassword)).orElse(false);
+    } else {
+      return false;
+    }
   }
 }

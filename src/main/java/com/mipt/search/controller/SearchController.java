@@ -1,4 +1,4 @@
-package com.mipt.controller;
+package com.mipt.search.controller;
 
 import com.mipt.mainpage.model.ShortAdvert;
 import com.mipt.search.model.SearchHistory;

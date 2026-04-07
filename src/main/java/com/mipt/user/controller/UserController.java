@@ -1,5 +1,6 @@
-package com.mipt.controller;
+package com.mipt.user.controller;
 
+import com.mipt.user.controller.dto.CreateUserRequest;
 import com.mipt.user.model.User;
 import com.mipt.user.service.UserService;
 import java.util.List;
@@ -47,10 +48,10 @@ public class UserController {
  @PostMapping
  @ResponseStatus(HttpStatus.CREATED)
  public User create(@RequestBody CreateUserRequest request) {
-  if (userService.existsByEmail(request.email())) {
+  if (userService.existsByEmail(request.getEmail())) {
    throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already exists");
   }
-  User user = new User(request.login(), request.email(), request.password());
+  User user = new User(request.getLogin(), request.getEmail(), request.getPassword());
   userService.save(user);
   return user;
  }
@@ -73,6 +74,4 @@ public class UserController {
   }
  }
 
- public record CreateUserRequest(String login, String email, String password) {
- }
 }
