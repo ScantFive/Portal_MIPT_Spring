@@ -1,4 +1,4 @@
-package com.mipt.config.advertisement;
+package com.mipt.config;
 
 import org.apache.kafka.clients.admin.NewTopic;
 import org.springframework.beans.factory.annotation.Value;
