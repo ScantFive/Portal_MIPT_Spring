@@ -1,7 +1,9 @@
 .auth-container {
-  max-width: 420px;
-  margin: 3rem auto;
-  padding: 2rem;
+  max-width: 500px;
+  margin: 10% auto;
+  padding: 20% auto;
+  justify-content: center;
+  align-items: center;
   background: #fff;
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
@@ -72,7 +74,7 @@
   color: #b91c1c;
   padding: 0.75rem;
   border-radius: 6px;
-  font-size: 0.9rem;
+  font-size: 1rem;
   text-align: center;
   animation: shake 0.3s ease-in-out;
 }

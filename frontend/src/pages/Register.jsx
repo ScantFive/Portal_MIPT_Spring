@@ -18,7 +18,6 @@ export default function Register() {
     e.preventDefault();
     setError('');
 
-    // === ВАЛИДАЦИЯ (соответствует бэкенду) ===
     
     // 1. Email домен @phystech.edu
     if (!form.email.trim().endsWith('@phystech.edu')) {
@@ -50,7 +49,7 @@ export default function Register() {
       });
       
       // Успех
-      alert('✅ Регистрация успешна! Теперь войдите в систему.');
+      alert('Регистрация успешна! Теперь войдите в систему.');
       navigate('/login');
       
     } catch (err) {

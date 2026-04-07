@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,6 +21,20 @@ import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/users")
+@CrossOrigin(
+    origins = {"http://localhost:3000"},
+    allowedHeaders = "*",
+    methods = {
+        org.springframework.web.bind.annotation.RequestMethod.GET,
+        org.springframework.web.bind.annotation.RequestMethod.POST,
+        org.springframework.web.bind.annotation.RequestMethod.PUT,
+        org.springframework.web.bind.annotation.RequestMethod.DELETE,
+        org.springframework.web.bind.annotation.RequestMethod.OPTIONS,
+        org.springframework.web.bind.annotation.RequestMethod.PATCH
+    },
+    allowCredentials = "true",
+    maxAge = 3600
+)
 @RequiredArgsConstructor
 public class UserController {
 

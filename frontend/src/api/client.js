@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.PROD ? '' : 'http://localhost:8080';
+const API_BASE = import.meta.env.PROD ? '' : 'http://localhost:8082';
 
 // Глобальный обработчик ошибок
 async function fetchJson(url, options = {}) {
