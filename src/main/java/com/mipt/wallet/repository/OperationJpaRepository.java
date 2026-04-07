@@ -12,6 +12,7 @@ import java.util.UUID;
 @Repository
 public interface OperationJpaRepository extends JpaRepository<Operation, UUID> {
 
-  @Query("SELECT o FROM Operation o WHERE (o.clientId = :clientId AND o.performerId = :performerId) OR (o.clientId = :performerId AND o.performerId = :clientId)")
-  List<Operation> findByParticipantsId(@Param("clientId") UUID clientId, @Param("performerId") UUID performerId);
+    @Query("SELECT o FROM Operation o WHERE (o.clientId = :clientId AND o.performerId = :performerId) OR (o.clientId = :performerId AND o.performerId = :clientId)")
+    List<Operation> findByParticipantsId(@Param("clientId") UUID clientId,
+            @Param("performerId") UUID performerId);
 }
