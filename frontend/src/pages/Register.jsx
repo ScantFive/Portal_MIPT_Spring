@@ -11,7 +11,7 @@ export default function Register() {
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
-    setError(''); // сброс ошибки при вводе
+    setError('');
   };
 
   const handleSubmit = async (e) => {
@@ -19,45 +19,37 @@ export default function Register() {
     setError('');
 
     
-    // 1. Email домен @phystech.edu
     if (!form.email.trim().endsWith('@phystech.edu')) {
       return setError('Регистрация доступна только для почты @phystech.edu');
     }
 
-    // 2. Логин >= 3 символа
     if (form.login.trim().length < 3) {
       return setError('Логин должен содержать не менее 3 символов');
     }
 
-    // 3. Пароль >= 6 символов
     if (form.password.length < 6) {
       return setError('Пароль должен содержать не менее 6 символов');
     }
 
-    // 4. Подтверждение пароля
     if (form.password !== form.confirmPassword) {
       return setError('Пароли не совпадают');
     }
 
     setLoading(true);
     try {
-      // Запрос к бэкенду
       await api.users.register({
         login: form.login.trim(),
         email: form.email.trim(),
         password: form.password
       });
       
-      // Успех
       alert('Регистрация успешна! Теперь войдите в систему.');
       navigate('/login');
       
     } catch (err) {
-      // Обработка ошибок от Spring
       if (err.status === 409) {
         setError('Пользователь с таким email уже существует');
       } else if (err.status === 400) {
-        // Парсинг сообщения от бэкенда, если оно есть
         const msg = err.body || 'Неверные данные. Проверьте поля формы';
         setError(msg);
       } else {

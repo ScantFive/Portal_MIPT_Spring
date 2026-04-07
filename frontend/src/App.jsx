@@ -3,7 +3,6 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ProtectedRoute from "./components/ProtectedRoute";
 
-// Пример компонента для защищённых страниц
 function Profile() {
   return (
     <div style={{ padding: "40px", textAlign: "center" }}>

@@ -22,26 +22,18 @@ export default function Login() {
       return setError('Заполните все поля');
     }
 
-    // Валидация домена
     if (!form.email.trim().endsWith('@phystech.edu')) {
       return setError('Вход доступен только для @phystech.edu');
     }
 
     setLoading(true);
     try {
-      // Вызов логина из вашего API
       const response = await api.auth.login(form.email, form.password);
       
-      // Предполагаем, что бэкенд возвращает { token, user } или просто пользователя
-      // Адаптируйте под ваш реальный ответ
       if (response.token) {
-        // Если приходит токен и пользователь отдельно
         auth.setAuth(response.token, response.user || response);
         navigate('/profile', { replace: true });
       } else if (response.id || response.email) {
-        // Если бэкенд возвращает просто пользователя (и токен в cookies/header)
-        // В этом случае нужно получить токен из заголовка или cookies
-        // Пока сохраняем пользователя без токена
         localStorage.setItem('user', JSON.stringify(response));
         navigate('/profile', { replace: true });
       } else {
@@ -51,7 +43,6 @@ export default function Login() {
     } catch (err) {
       console.error('Login error:', err);
       
-      // Обработка ошибок на основе HTTP статуса
       if (err.status === 401) {
         setError('Неверный email или пароль');
       } else if (err.status === 404) {
