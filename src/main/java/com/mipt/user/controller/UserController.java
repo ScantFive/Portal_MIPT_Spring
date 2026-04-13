@@ -38,6 +38,14 @@ public class UserController {
     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
  }
 
+ @GetMapping("/{id}/email")
+ public String getEmailById(@PathVariable UUID id) {
+  return userService
+    .findById(id)
+    .map(User::getEmail)
+    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+ }
+
  @GetMapping("/by-email")
  public User getByEmail(@RequestParam String email) {
   return userService
