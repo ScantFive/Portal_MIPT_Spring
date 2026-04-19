@@ -69,4 +69,12 @@ public class UserService {
       return false;
     }
   }
+  public boolean authenticateByEmail(String email, String rawPassword){
+    if (repository.existsByEmail(email)) {
+      Optional<User> userOpt = repository.findByEmail(email);
+      return userOpt.map(user -> user.checkPassword(rawPassword)).orElse(false);
+    } else {
+      return false;
+    }
+  }
 }
