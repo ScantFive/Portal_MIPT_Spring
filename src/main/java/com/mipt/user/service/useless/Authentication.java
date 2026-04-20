@@ -1,4 +1,4 @@
-package com.mipt.user.service;
+package com.mipt.user.service.useless;
 
 public interface Authentication {
 

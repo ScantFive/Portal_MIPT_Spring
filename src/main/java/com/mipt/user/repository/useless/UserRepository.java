@@ -1,6 +1,7 @@
-package com.mipt.user.repository;
+package com.mipt.user.repository.useless;
 
 import com.mipt.user.model.User;
+import com.mipt.user.repository.UserJpaRepository;
 import com.mipt.util.SpringContext;
 import java.util.*;
 

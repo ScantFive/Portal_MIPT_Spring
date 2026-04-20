@@ -1,7 +1,7 @@
-package com.mipt.user.service;
+package com.mipt.user.service.useless;
 
 import com.mipt.user.model.User;
-import com.mipt.user.repository.UserRepository;
+import com.mipt.user.repository.useless.UserRepository;
 import com.mipt.util.PasswordHasher;
 import java.util.*;
 

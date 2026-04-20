@@ -4,6 +4,7 @@ import com.mipt.user.event.UserEvent;
 import com.mipt.user.model.User;
 import com.mipt.user.repository.UserJpaRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,12 +19,10 @@ public class UserService {
 
   private final UserJpaRepository repository;
   private final UserKafkaEventPublisher eventPublisher;
-
   public void save(User user) {
     if (user.getUserID() == null) {
       user.setUserID(UUID.randomUUID());
     }
-
     User saved = repository.save(user);
     eventPublisher.publish(UserEvent.registered(saved));
   }

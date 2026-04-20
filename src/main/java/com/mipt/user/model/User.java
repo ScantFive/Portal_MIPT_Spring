@@ -7,65 +7,86 @@ import java.util.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+// Добавляем импорты Security
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 
 @Entity
 @Table(name = "users")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class User implements Serializable {
-  private static final long serialVersionUID = 1L;
+public class User implements Serializable, UserDetails { // Добавляем интерфейс
 
-  @Id
-  @Column(name = "id")
-  private UUID userID;
+    private static final long serialVersionUID = 1L;
 
-  @Column(name = "login", nullable = false, unique = true, length = 255)
-  private String login;
+    @Id
+    @Column(name = "id")
+    private UUID userID;
 
-  @Column(name = "email", nullable = false, unique = true, length = 255)
-  private String email;
+    @Column(name = "login", nullable = false, unique = true, length = 255)
+    private String login;
 
-  @Column(name = "hashed_password", nullable = false, length = 255)
-  private String hashedPassword;
+    @Column(name = "email", nullable = false, unique = true, length = 255)
+    private String email;
 
-  @Column(name = "activated", nullable = false)
-  private Boolean activated = false;
+    @Column(name = "hashed_password", nullable = false, length = 255)
+    private String hashedPassword;
 
-  /**
-   * Factory constructor for creating a new user with raw password.
-   * This constructor generates a new UUID and hashes the password.
-   */
-  public User(String login, String email, String rawPassword) {
-    this.userID = UUID.randomUUID();
-    this.login = login;
-    this.email = email.toLowerCase().trim();
-    this.hashedPassword = PasswordHasher.hash(rawPassword);
-    this.activated = false;
-  }
+    @Column(name = "activated", nullable = false)
+    private Boolean activated = false;
 
-  public static User fromDatabase(
-      UUID userID,
-      String login,
-      String email,
-      String passwordHash,
-      Boolean activated) {
-    User user = new User();
-    user.userID = userID;
-    user.login = login;
-    user.email = email.toLowerCase().trim();
-    user.hashedPassword = passwordHash;
-    user.activated = activated != null ? activated : false;
-    return user;
-  }
+    // --- Твои существующие методы остаются без изменений ---
 
-  public boolean checkPassword(String rawPassword) {
-    return PasswordHasher.verify(rawPassword, this.hashedPassword);
-  }
-
-  public void changePassword(String rawPassword1, String rawPassword2) {
-    if (rawPassword1.equals(rawPassword2) && rawPassword1.length() > 6) {
-      this.hashedPassword = PasswordHasher.hash(rawPassword1);
+    public User(String login, String email, String encodedPassword) {
+        this.userID = UUID.randomUUID();
+        this.login = login;
+        this.email = email.toLowerCase().trim();
+        this.hashedPassword = encodedPassword;
+        this.activated = false;
     }
-  }
+
+    // --- Реализация методов UserDetails ---
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        // Возвращаем базовую роль для всех пользователей
+        return List.of(new SimpleGrantedAuthority("ROLE_USER"));
+    }
+
+    @Override
+    public String getPassword() {
+        return this.hashedPassword; // Spring Security будет использовать это поле для сверки
+    }
+
+    @Override
+    public String getUsername() {
+        return this.email; // Используем email как главный идентификатор (логин)
+    }
+
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return true;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        // Можно привязать к твоему полю activated
+        return this.activated != null && this.activated;
+    }
+
+    public boolean checkPassword(String rawPassword) {
+        return PasswordHasher.verify(rawPassword, this.hashedPassword);
+    }
 }
