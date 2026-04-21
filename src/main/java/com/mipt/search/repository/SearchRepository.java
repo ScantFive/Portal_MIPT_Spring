@@ -1,8 +1,8 @@
 package com.mipt.search.repository;
 
+import com.mipt.advertisement.controller.dto.AdvertisementResponse;
 import com.mipt.advertisement.model.Advertisement;
 import com.mipt.advertisement.repository.AdvertisementRepository;
-import com.mipt.mainpage.model.ShortAdvert;
 import com.mipt.mainpage.model.Favorite;
 import com.mipt.mainpage.repository.FavoriteJpaRepository;
 import com.mipt.search.model.SearchQuery;
@@ -27,11 +27,11 @@ public class SearchRepository {
     return SpringContext.getBean(FavoriteJpaRepository.class);
   }
 
-  public static List<ShortAdvert> getAdverts(long limit, long offset, SearchQuery search) {
+  public static List<AdvertisementResponse> getAdverts(long limit, long offset, SearchQuery search) {
     return getAdverts(limit, offset, search, null);
   }
 
-  public static List<ShortAdvert> getAdverts(
+  public static List<AdvertisementResponse> getAdverts(
       long limit, long offset, SearchQuery search, UUID userId) {
     SearchQuery effectiveSearch = Optional.ofNullable(search).orElseGet(SearchQuery::new);
     Set<UUID> favoriteIds = userId == null
@@ -45,7 +45,7 @@ public class SearchRepository {
         .sorted(buildComparator(effectiveSearch.getSortOrder()))
         .skip(offset)
         .limit(limit)
-        .map(ad -> toShortAdvert(ad, favoriteIds.contains(ad.getId())))
+        .map(ad -> toAdvertisementResponse(ad, favoriteIds.contains(ad.getId())))
         .collect(Collectors.toList());
   }
 
@@ -56,7 +56,7 @@ public class SearchRepository {
   }
 
   /** Получить избранные объявления пользователя с возможностью фильтрации */
-  public static List<ShortAdvert> getFavoriteAdverts(
+  public static List<AdvertisementResponse> getFavoriteAdverts(
       UUID userId, long limit, long offset, SearchQuery search) {
     SearchQuery effectiveSearch = Optional.ofNullable(search).orElseGet(SearchQuery::new);
     Set<UUID> favoriteIds = favoriteRepository().findByUserId(userId).stream()
@@ -68,7 +68,7 @@ public class SearchRepository {
         .sorted(buildComparator(effectiveSearch.getSortOrder()))
         .skip(offset)
         .limit(limit)
-        .map(ad -> toShortAdvert(ad, true))
+        .map(ad -> toAdvertisementResponse(ad, true))
         .collect(Collectors.toList());
   }
 
@@ -125,31 +125,18 @@ public class SearchRepository {
         .reversed();
   }
 
-  private static ShortAdvert toShortAdvert(Advertisement ad, boolean isFavorite) {
-    List<URL> photos = new ArrayList<>();
-    if (ad.getPhotoUrls() != null) {
-      for (String url : ad.getPhotoUrls()) {
-        try {
-          photos.add(new URL(url));
-        } catch (MalformedURLException ignored) {
-          // Ignore malformed URLs in legacy data.
-        }
-      }
-    }
-
-    String description = ad.getDescription() == null ? "" : ad.getDescription();
-    String preview = description.length() > DESCRIPTION_PREVIEW_LENGTH
-        ? description.substring(0, DESCRIPTION_PREVIEW_LENGTH) + "..."
-        : description;
-
-    return ShortAdvert.builder()
-        .advertId(ad.getId())
-        .authorId(ad.getAuthorId())
-        .title(ad.getName())
-        .descriptionPreview(preview)
-        .price(ad.getPrice() == null ? 0L : ad.getPrice())
-        .photos(photos)
-        .isFavorite(isFavorite)
-        .build();
+  private static AdvertisementResponse toAdvertisementResponse(Advertisement ad, boolean isFavorite) {
+    return AdvertisementResponse.builder()
+            .id(ad.getId())
+            .type(ad.getType() != null ? ad.getType().name() : null)
+            .authorId(ad.getAuthorId())
+            .name(ad.getName()) // Теперь фронтенд увидит name!
+            .description(ad.getDescription())
+            .price(ad.getPrice())
+            .photoUrls(ad.getPhotoUrls())
+            .category(ad.getCategory() != null ? ad.getCategory().name() : null)
+            .isFavorite(isFavorite)
+            .createdAt(ad.getCreatedAt())
+            .build();
   }
 }

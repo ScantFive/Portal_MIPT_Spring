@@ -1,6 +1,6 @@
 package com.mipt.search.service;
 
-import com.mipt.mainpage.model.ShortAdvert;
+import com.mipt.advertisement.controller.dto.AdvertisementResponse;
 import com.mipt.search.model.SearchHistory;
 import com.mipt.search.model.SearchQuery;
 import com.mipt.search.model.SearchSuggestion;
@@ -10,17 +10,17 @@ import java.util.UUID;
 
 public interface SearchService {
 
-  List<ShortAdvert> search(long limit, long offset, SearchQuery query);
+  List<AdvertisementResponse> search(long limit, long offset, SearchQuery query);
 
-  List<ShortAdvert> search(long limit, long offset, SearchQuery query, UUID userId);
+  List<AdvertisementResponse> search(long limit, long offset, SearchQuery query, UUID userId);
 
-  List<ShortAdvert> searchByText(String searchText, long limit, long offset);
+  List<AdvertisementResponse> searchByText(String searchText, long limit, long offset);
 
-  List<ShortAdvert> searchByType(SearchType type, long limit, long offset);
+  List<AdvertisementResponse> searchByType(SearchType type, long limit, long offset);
 
-  List<ShortAdvert> searchByCategory(String categoryTitle, long limit, long offset);
+  List<AdvertisementResponse> searchByCategory(String categoryTitle, long limit, long offset);
 
-  List<ShortAdvert> searchFavorites(UUID userId, SearchQuery query, long limit, long offset);
+  List<AdvertisementResponse> searchFavorites(UUID userId, SearchQuery query, long limit, long offset);
 
   // Методы работы с историей поиска
   List<SearchHistory> getUserSearchHistory(UUID userId, int limit);

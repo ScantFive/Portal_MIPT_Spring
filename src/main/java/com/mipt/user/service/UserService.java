@@ -32,6 +32,7 @@ public class UserService {
     String token = UUID.randomUUID().toString();
     user.setActivationToken(token);
     User saved = repository.save(user);
+    saved.setActivated(true);
     String activationUrl = baseUrl + "/api/activate?token=" + token;
     log.info("Activation URL for {}: {}", saved.getEmail(), activationUrl);
     eventPublisher.publish(UserEvent.registered(saved, activationUrl));

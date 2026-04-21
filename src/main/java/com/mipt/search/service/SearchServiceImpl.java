@@ -1,6 +1,6 @@
 package com.mipt.search.service;
 
-import com.mipt.mainpage.model.ShortAdvert;
+import com.mipt.advertisement.controller.dto.AdvertisementResponse;
 import com.mipt.search.event.SearchHistoryEvent;
 import com.mipt.search.model.SearchHistory;
 import com.mipt.search.model.SearchQuery;
@@ -28,14 +28,14 @@ public class SearchServiceImpl implements SearchService {
   private final SearchKafkaEventPublisher eventPublisher;
 
   @Override
-  public List<ShortAdvert> search(long limit, long offset, SearchQuery query) {
+  public List<AdvertisementResponse> search(long limit, long offset, SearchQuery query) {
     return search(limit, offset, query, null);
   }
 
   @Override
-  public List<ShortAdvert> search(long limit, long offset, SearchQuery query, UUID userId) {
+  public List<AdvertisementResponse> search(long limit, long offset, SearchQuery query, UUID userId) {
     SearchQuery effectiveQuery = Optional.ofNullable(query).orElseGet(SearchQuery::new);
-    List<ShortAdvert> adverts = SearchRepository.getAdverts(limit, offset, effectiveQuery, userId);
+    List<AdvertisementResponse> adverts = SearchRepository.getAdverts(limit, offset, effectiveQuery, userId);
 
     if (userId != null && isSignificantQuery(effectiveQuery)) {
       SearchHistoryRepository.saveSearchHistory(userId, effectiveQuery, adverts.size());
@@ -46,21 +46,21 @@ public class SearchServiceImpl implements SearchService {
   }
 
   @Override
-  public List<ShortAdvert> searchByText(String searchText, long limit, long offset) {
+  public List<AdvertisementResponse> searchByText(String searchText, long limit, long offset) {
     SearchQuery query = new SearchQuery();
     query.setSearchText(searchText);
     return search(limit, offset, query);
   }
 
   @Override
-  public List<ShortAdvert> searchByType(SearchType type, long limit, long offset) {
+  public List<AdvertisementResponse> searchByType(SearchType type, long limit, long offset) {
     SearchQuery query = new SearchQuery();
     query.setType(type);
     return search(limit, offset, query);
   }
 
   @Override
-  public List<ShortAdvert> searchByCategory(String categoryTitle, long limit, long offset) {
+  public List<AdvertisementResponse> searchByCategory(String categoryTitle, long limit, long offset) {
     SearchQuery query = new SearchQuery();
     com.mipt.search.model.SearchCategory category = new com.mipt.search.model.SearchCategory();
     category.setCategoryTitle(categoryTitle);
@@ -70,13 +70,13 @@ public class SearchServiceImpl implements SearchService {
   }
 
   @Override
-  public List<ShortAdvert> searchFavorites(UUID userId, SearchQuery query, long limit, long offset) {
+  public List<AdvertisementResponse> searchFavorites(UUID userId, SearchQuery query, long limit, long offset) {
     if (userId == null) {
       throw new IllegalArgumentException("User ID не может быть null для поиска в избранном");
     }
 
     SearchQuery effectiveQuery = Optional.ofNullable(query).orElseGet(SearchQuery::new);
-    List<ShortAdvert> adverts = SearchRepository.getFavoriteAdverts(userId, limit, offset, effectiveQuery);
+    List<AdvertisementResponse> adverts = SearchRepository.getFavoriteAdverts(userId, limit, offset, effectiveQuery);
 
     if (isSignificantQuery(effectiveQuery)) {
       SearchHistoryRepository.saveSearchHistory(userId, effectiveQuery, adverts.size());

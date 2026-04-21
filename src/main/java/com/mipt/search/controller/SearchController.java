@@ -1,6 +1,6 @@
 package com.mipt.search.controller;
 
-import com.mipt.mainpage.model.ShortAdvert;
+import com.mipt.advertisement.controller.dto.AdvertisementResponse;
 import com.mipt.search.model.SearchHistory;
 import com.mipt.search.model.SearchQuery;
 import com.mipt.search.model.SearchSuggestion;
@@ -26,7 +26,7 @@ public class SearchController {
  private final SearchService searchService;
 
  @PostMapping
- public List<ShortAdvert> search(
+ public List<AdvertisementResponse> search(
    @RequestBody(required = false) SearchQuery query,
    @RequestParam(defaultValue = "50") long limit,
    @RequestParam(defaultValue = "0") long offset,
@@ -38,7 +38,7 @@ public class SearchController {
  }
 
  @GetMapping("/text")
- public List<ShortAdvert> searchByText(
+ public List<AdvertisementResponse> searchByText(
    @RequestParam String value,
    @RequestParam(defaultValue = "50") long limit,
    @RequestParam(defaultValue = "0") long offset) {
@@ -46,7 +46,7 @@ public class SearchController {
  }
 
  @GetMapping("/type")
- public List<ShortAdvert> searchByType(
+ public List<AdvertisementResponse> searchByType(
    @RequestParam SearchType value,
    @RequestParam(defaultValue = "50") long limit,
    @RequestParam(defaultValue = "0") long offset) {
@@ -54,7 +54,7 @@ public class SearchController {
  }
 
  @GetMapping("/category")
- public List<ShortAdvert> searchByCategory(
+ public List<AdvertisementResponse> searchByCategory(
    @RequestParam String value,
    @RequestParam(defaultValue = "50") long limit,
    @RequestParam(defaultValue = "0") long offset) {
