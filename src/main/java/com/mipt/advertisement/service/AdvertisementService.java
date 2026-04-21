@@ -43,45 +43,53 @@ public class AdvertisementService {
     return advertisementMapper.toResponse(saved);
   }
 
+  @Transactional(readOnly = true)
   public AdvertisementResponse getAdvertisement(UUID id) {
     log.debug("Getting advertisement by id: {}", id);
 
     Advertisement advertisement = advertisementRepository.findById(id)
             .orElseThrow(() -> new AdvertisementNotFoundException(id));
 
+    advertisement.getPhotos().size();
     return advertisementMapper.toResponse(advertisement);
   }
 
-  @Transactional(readOnly = true)  // ← Добавить эту аннотацию
+  @Transactional(readOnly = true)
   public List<AdvertisementResponse> getAllAdvertisements() {
     log.debug("Getting all advertisements");
 
     List<Advertisement> advertisements = advertisementRepository.findAllByOrderByCreatedAtDesc();
 
-    // Инициализируем фото внутри транзакции
-    advertisements.forEach(ad -> ad.getPhotos().size()); // Принудительно загружаем фото
+    advertisements.forEach(ad -> ad.getPhotos().size());
 
     return advertisements.stream()
             .map(advertisementMapper::toResponse)
             .collect(Collectors.toList());
   }
 
+  @Transactional(readOnly = true)
   public List<AdvertisementResponse> getAdvertisementsByAuthor(UUID authorId) {
     log.debug("Getting advertisements by author: {}", authorId);
 
-    return advertisementRepository.findByAuthorId(authorId).stream()
+    List<Advertisement> advertisements = advertisementRepository.findByAuthorId(authorId);
+    advertisements.forEach(ad -> ad.getPhotos().size());
+    return advertisements.stream()
             .map(advertisementMapper::toResponse)
             .collect(Collectors.toList());
   }
 
+  @Transactional(readOnly = true)
   public List<AdvertisementResponse> getAdvertisementsByStatus(AdvertisementStatus status) {
     log.debug("Getting advertisements by status: {}", status);
 
-    return advertisementRepository.findByStatus(status).stream()
+    List<Advertisement> advertisements = advertisementRepository.findByStatus(status);
+    advertisements.forEach(ad -> ad.getPhotos().size());
+    return advertisements.stream()
             .map(advertisementMapper::toResponse)
             .collect(Collectors.toList());
   }
 
+  @Transactional(readOnly = true)
   public List<AdvertisementResponse> getAdvertisementsByCategory(String categoryName) {
     log.debug("Getting advertisements by category: {}", categoryName);
 
@@ -90,23 +98,31 @@ public class AdvertisementService {
       throw new IllegalArgumentException("Invalid category: " + categoryName);
     }
 
-    return advertisementRepository.findByCategory(category).stream()
+    List<Advertisement> advertisements = advertisementRepository.findByCategory(category);
+    advertisements.forEach(ad -> ad.getPhotos().size());
+    return advertisements.stream()
             .map(advertisementMapper::toResponse)
             .collect(Collectors.toList());
   }
 
+  @Transactional(readOnly = true)
   public List<AdvertisementResponse> getAdvertisementsByType(Type type) {
     log.debug("Getting advertisements by type: {}", type);
 
-    return advertisementRepository.findByType(type).stream()
+    List<Advertisement> advertisements = advertisementRepository.findByType(type);
+    advertisements.forEach(ad -> ad.getPhotos().size());
+    return advertisements.stream()
             .map(advertisementMapper::toResponse)
             .collect(Collectors.toList());
   }
 
+  @Transactional(readOnly = true)
   public List<AdvertisementResponse> getFavoriteAdvertisements() {
     log.debug("Getting favorite advertisements");
 
-    return advertisementRepository.findByIsFavoriteTrue().stream()
+    List<Advertisement> advertisements = advertisementRepository.findByIsFavoriteTrue();
+    advertisements.forEach(ad -> ad.getPhotos().size());
+    return advertisements.stream()
             .map(advertisementMapper::toResponse)
             .collect(Collectors.toList());
   }
