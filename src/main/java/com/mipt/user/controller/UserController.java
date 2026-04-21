@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -57,7 +58,10 @@ public class UserController {
  @ResponseStatus(HttpStatus.CREATED)
  public User create(@RequestBody CreateUserRequest request) {
   if (userService.existsByEmail(request.getEmail())) {
-   throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already exists");
+   throw new ResponseStatusException(HttpStatus.CONFLICT, "Пользователь с таким email уже существует");
+  }
+  if (userService.existsByLogin(request.getLogin())) {
+   throw new ResponseStatusException(HttpStatus.CONFLICT, "Пользователь с таким логином уже существует");
   }
   User user = new User(request.getLogin(), request.getEmail(), request.getPassword());
   userService.save(user);
@@ -72,6 +76,15 @@ public class UserController {
   user.setUserID(id);
   userService.update(user);
   return user;
+ }
+
+ @GetMapping("/activate")
+ public ResponseEntity<?> activate(@RequestParam String token) {
+  boolean ok = userService.activate(token);
+  if (ok) {
+   return ResponseEntity.ok(java.util.Map.of("message", "Аккаунт успешно активирован"));
+  }
+  throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Неверный или уже использованный токен активации");
  }
 
  @DeleteMapping("/{id}")

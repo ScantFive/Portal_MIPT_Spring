@@ -32,6 +32,9 @@ public class User implements Serializable {
   @Column(name = "activated", nullable = false)
   private Boolean activated = false;
 
+  @Column(name = "activation_token")
+  private String activationToken;
+
   /**
    * Factory constructor for creating a new user with raw password.
    * This constructor generates a new UUID and hashes the password.

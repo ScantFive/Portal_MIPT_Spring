@@ -1,8 +1,2 @@
-spring:
-  application:
-    name: Portal_MIPT
-  datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/portal_DB}
-    username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${SPRING_DATASOURCE_PASSWORD:JavaMTS}
-    driver-class-name: org.postgresql.Driver
+# application.properties is the primary config file.
+# This file is kept for reference only.

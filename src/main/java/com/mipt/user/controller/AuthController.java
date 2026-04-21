@@ -24,17 +24,19 @@ public class AuthController {
 
     @PostMapping("/authenticate/email")
     public ResponseEntity<?> authenticateByEmail(@RequestBody AuthByEmailRequest request) {
-        boolean success = userService.authenticateByEmail(request.getEmail(),
-                request.getPassword());
-
-        if (success) {
-            return ResponseEntity.ok(Map.of(
-                    "token", "fake-jwt-token-for-now",
-                    "email", request.getEmail()
-            ));
-        } else {
+        var userOpt = userService.findByEmail(request.getEmail());
+        if (userOpt.isEmpty() || !userOpt.get().checkPassword(request.getPassword())) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
+        var user = userOpt.get();
+        if (!Boolean.TRUE.equals(user.getActivated())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", "Аккаунт не активирован. Проверьте почту и перейдите по ссылке активации."));
+        }
+        return ResponseEntity.ok(Map.of(
+                "token", "fake-jwt-token-for-now",
+                "email", request.getEmail()
+        ));
     }
 
     @GetMapping("/by-login/{login}")

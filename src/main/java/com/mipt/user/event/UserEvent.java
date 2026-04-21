@@ -21,8 +21,8 @@ public class UserEvent {
  private String details;
  private Instant timestamp;
 
- public static UserEvent registered(User user) {
-  return base("USER_REGISTERED", user, "REGISTER", "User registered");
+ public static UserEvent registered(User user, String activationUrl) {
+  return base("USER_REGISTERED", user, "REGISTER", activationUrl);
  }
 
  public static UserEvent updated(User user) {

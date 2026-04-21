@@ -1,11 +1,12 @@
 DROP TABLE IF EXISTS users CASCADE;
 
 CREATE TABLE IF NOT EXISTS users (
-  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  login           VARCHAR(50) UNIQUE NOT NULL,
-  email           VARCHAR(50) NOT NULL,
-  hashed_password TEXT NOT NULL,
-  activated       BOOLEAN DEFAULT FALSE
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  login            VARCHAR(50) UNIQUE NOT NULL,
+  email            VARCHAR(50) NOT NULL,
+  hashed_password  TEXT NOT NULL,
+  activated        BOOLEAN DEFAULT FALSE,
+  activation_token VARCHAR(255)
 );
 
 INSERT INTO users (id, login, email, hashed_password, activated) VALUES

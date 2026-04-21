@@ -33,6 +33,10 @@ public class OperationDataService {
     return repository.findByParticipantsId(clientId, performerId);
   }
 
+  public List<Operation> findByUserId(UUID userId) {
+    return repository.findByUserId(userId);
+  }
+
   public List<Operation> findAll() {
     return repository.findAll();
   }

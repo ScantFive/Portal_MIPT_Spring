@@ -6,7 +6,12 @@ import org.springframework.web.bind.annotation.GetMapping;
 @Controller
 public class FrontendController {
 
-    @GetMapping(value = {"/", "/{path:[^\\.]+}"})
+    @GetMapping(value = {
+        "/",
+        "/{a:[^\\.]*}",
+        "/{a:[^\\.]*}/{b:[^\\.]*}",
+        "/{a:[^\\.]*}/{b:[^\\.]*}/{c:[^\\.]*}"
+    })
     public String forward() {
         return "forward:/index.html";
     }

@@ -4,13 +4,16 @@ import com.mipt.user.event.UserEvent;
 import com.mipt.user.model.User;
 import com.mipt.user.repository.UserJpaRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Value;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -19,17 +22,36 @@ public class UserService {
   private final UserJpaRepository repository;
   private final UserKafkaEventPublisher eventPublisher;
 
+  @Value("${app.base-url:http://localhost:8080}")
+  private String baseUrl;
+
   public void save(User user) {
     if (user.getUserID() == null) {
       user.setUserID(UUID.randomUUID());
     }
-
+    String token = UUID.randomUUID().toString();
+    user.setActivationToken(token);
     User saved = repository.save(user);
-    eventPublisher.publish(UserEvent.registered(saved));
+    String activationUrl = baseUrl + "/api/activate?token=" + token;
+    log.info("Activation URL for {}: {}", saved.getEmail(), activationUrl);
+    eventPublisher.publish(UserEvent.registered(saved, activationUrl));
+  }
+
+  public boolean activate(String token) {
+    return repository.findByActivationToken(token).map(user -> {
+      user.setActivated(true);
+      user.setActivationToken(null);
+      repository.save(user);
+      return true;
+    }).orElse(false);
   }
 
   public boolean existsByEmail(String email) {
     return repository.existsByEmail(email.toLowerCase().trim());
+  }
+
+  public boolean existsByLogin(String login) {
+    return repository.existsByLogin(login.toLowerCase().trim());
   }
 
   public Optional<User> findByEmail(String email) {
