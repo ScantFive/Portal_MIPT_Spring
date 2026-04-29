@@ -9,6 +9,7 @@ import com.mipt.review.dto.UpdateReviewRequest;
 import com.mipt.review.event.ReviewEvent;
 import com.mipt.review.model.Review;
 import com.mipt.review.repository.ReviewRepository;
+import com.mipt.user.repository.UserJpaRepository;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +31,7 @@ public class ReviewService {
 
     private final ReviewRepository reviewRepository;
     private final AdvertisementRepository advertisementRepository;
+    private final UserJpaRepository userRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     @Value("${kafka.topic.review-events:review-events}")
     private String TOPIC_REVIEW_EVENTS;
@@ -43,6 +45,12 @@ public class ReviewService {
         // Проверка: нельзя оставить отзыв самому себе
         if (request.getSellerId().equals(buyerId)) {
             throw new IllegalArgumentException("Нельзя оставить отзыв самому себе");
+        }
+
+        // Проверка: уже существует отзыв от этого покупателя
+        if (reviewRepository.existsBySellerIdAndBuyerIdAndAdvertisementId(
+                request.getSellerId(), buyerId, request.getAdvertisementId())) {
+            throw new IllegalStateException("Вы уже оставили отзыв для этого продавца/объявления");
         }
 
         String advertisementName = null;
@@ -60,15 +68,6 @@ public class ReviewService {
             }
 
             advertisementName = advertisement.getName();
-        }
-
-        // Проверка: нельзя оставить два одинаковых отзыва
-        boolean alreadyReviewed = reviewRepository.existsBySellerIdAndBuyerIdAndAdvertisementId(
-                request.getSellerId(), buyerId, request.getAdvertisementId()
-        );
-
-        if (alreadyReviewed) {
-            throw new IllegalStateException("Вы уже оставили отзыв на это объявление/продавца");
         }
 
         // Создаём отзыв
@@ -120,6 +119,9 @@ public class ReviewService {
         }
 
         if (request.getComment() != null) {
+            if (request.getComment().isBlank()) {
+                throw new IllegalArgumentException("Комментарий не может быть пустым");
+            }
             review.setComment(request.getComment());
         }
 
@@ -127,6 +129,7 @@ public class ReviewService {
             review.setAnonymous(request.getIsAnonymous());
         }
 
+        review.setUpdatedAt(Instant.now());
         Review updated = reviewRepository.save(review);
         log.info("Review updated successfully: {}", reviewId);
 
@@ -310,14 +313,21 @@ public class ReviewService {
     // ==================== MAPPER ====================
 
     private ReviewResponse mapToResponse(Review review, String advertisementName) {
-        String buyerName = review.isAnonymous() ? "Аноним" : review.getBuyerId().toString().substring(0, 8);
+        String buyerName = review.isAnonymous() ? "Аноним"
+                : userRepository.findById(review.getBuyerId())
+                        .map(u -> u.getLogin())
+                        .orElse(review.getBuyerId().toString().substring(0, 8));
+
+        String sellerName = userRepository.findById(review.getSellerId())
+                .map(u -> u.getLogin())
+                .orElse(review.getSellerId().toString().substring(0, 8));
 
         return ReviewResponse.builder()
                 .id(review.getId())
                 .advertisementId(review.getAdvertisementId())
                 .advertisementName(advertisementName)
                 .sellerId(review.getSellerId())
-                .sellerName(review.getSellerId().toString().substring(0, 8))
+                .sellerName(sellerName)
                 .buyerId(review.getBuyerId())
                 .buyerName(buyerName)
                 .rating(review.getRating())

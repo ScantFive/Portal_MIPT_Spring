@@ -95,6 +95,14 @@ public class ReviewController {
         return ResponseEntity.ok(reviews);
     }
 
+    // Получить отзыв по ID
+    @GetMapping("/{reviewId}")
+    public ResponseEntity<ReviewResponse> getReview(@PathVariable UUID reviewId) {
+        log.info("GET /api/v1/reviews/{}", reviewId);
+        ReviewResponse response = reviewService.getReviewById(reviewId);
+        return ResponseEntity.ok(response);
+    }
+
     // Получить статистику продавца
     @GetMapping("/sellers/{sellerId}/rating")
     public ResponseEntity<SellerRatingResponse> getSellerRating(@PathVariable UUID sellerId) {

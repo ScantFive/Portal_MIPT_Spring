@@ -1,5 +1,6 @@
 package com.mipt.review.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 import java.util.UUID;
@@ -20,5 +21,6 @@ public class CreateReviewRequest {
     @NotBlank(message = "Комментарий не может быть пустым")
     @Size(min = 10, max = 5000, message = "Комментарий от 10 до 5000 символов")
     private String comment;
+    @JsonProperty("isAnonymous")
     private boolean isAnonymous;
 }

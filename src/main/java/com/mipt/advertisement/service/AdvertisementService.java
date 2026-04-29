@@ -11,6 +11,7 @@ import com.mipt.advertisement.model.AdvertisementStatus;
 import com.mipt.advertisement.model.Category;
 import com.mipt.advertisement.model.Type;
 import com.mipt.advertisement.repository.AdvertisementRepository;
+import jakarta.persistence.EntityManager;
 import java.util.Arrays;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +30,7 @@ public class AdvertisementService {
   private final AdvertisementRepository advertisementRepository;
   private final AdvertisementMapper advertisementMapper;
   private final KafkaEventPublisher eventPublisher;
+  private final EntityManager entityManager;
 
   @Transactional
   public AdvertisementResponse createAdvertisement(AdvertisementRequest request) {
@@ -145,6 +147,8 @@ public class AdvertisementService {
     existing.setCategory(newCategory);
 
     if (request.getPhotoUrls() != null) {
+      existing.getPhotos().clear();
+      entityManager.flush(); // force DELETE of orphaned photos before inserting new ones
       existing.setPhotoUrls(request.getPhotoUrls());
     }
 
@@ -162,6 +166,12 @@ public class AdvertisementService {
 
     Advertisement existing = advertisementRepository.findById(id)
             .orElseThrow(() -> new AdvertisementNotFoundException(id));
+
+    // Если фото меняются — сначала удаляем старые, чтобы избежать нарушения UNIQUE (advertisement_id, display_order)
+    if (patchRequest.getPhotoUrls() != null) {
+      existing.getPhotos().clear();
+      entityManager.flush();
+    }
 
     // Применяем только те поля, которые пришли в запросе
     advertisementMapper.patchEntity(existing, patchRequest);

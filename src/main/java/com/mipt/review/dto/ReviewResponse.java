@@ -1,5 +1,6 @@
 package com.mipt.review.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Data;
 import java.time.Instant;
@@ -17,7 +18,9 @@ public class ReviewResponse {
     private String buyerName;  // Если isAnonymous = true, то "Аноним"
     private Integer rating;
     private String comment;
+    @JsonProperty("isVerifiedPurchase")
     private boolean isVerifiedPurchase;
+    @JsonProperty("isAnonymous")
     private boolean isAnonymous;
     private Instant createdAt;
     private Instant updatedAt;  // Добавляем для информации об изменении

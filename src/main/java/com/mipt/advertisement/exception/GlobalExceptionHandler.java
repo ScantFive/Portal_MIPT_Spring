@@ -85,16 +85,33 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponse> handleDataIntegrity(DataIntegrityViolationException e) {
-        log.error("Data integrity violation: {}", e.getMessage());
+        log.error("Data integrity violation", e);
+        String message = resolveDataIntegrityMessage(e);
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
                 .body(ErrorResponse.builder()
                         .timestamp(LocalDateTime.now())
                         .status(HttpStatus.CONFLICT.value())
                         .error("Conflict")
-                        .message("Пользователь с таким email или логином уже существует")
+                        .message(message)
                         .path(getPath())
                         .build());
+    }
+
+    private String resolveDataIntegrityMessage(DataIntegrityViolationException e) {
+        String msg = e.getMostSpecificCause().getMessage();
+        if (msg != null) {
+            if (msg.contains("uq_display_order_per_ad")) {
+                return "Ошибка при сохранении фотографий объявления";
+            }
+            if (msg.contains("users") && (msg.contains("login") || msg.contains("email"))) {
+                return "Пользователь с таким email или логином уже существует";
+            }
+            if (msg.contains("chk_price_positive") || msg.contains("price")) {
+                return "Цена должна быть положительной";
+            }
+        }
+        return "Ошибка сохранения данных. Проверьте введённые значения.";
     }
 
     @ExceptionHandler(ResponseStatusException.class)
