@@ -4,7 +4,9 @@ import com.mipt.advertisement.model.Advertisement;
 import com.mipt.advertisement.model.AdvertisementStatus;
 import com.mipt.advertisement.model.Category;
 import com.mipt.advertisement.model.Type;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -86,5 +88,9 @@ public interface AdvertisementRepository extends JpaRepository<Advertisement, UU
   @Query("SELECT AVG(a.price) FROM Advertisement a WHERE a.status = 'ACTIVE' AND a.category = :category")
   Double getAveragePriceByCategory(@Param("category") Category category);
 
-  // ===== Проверочные методы =====
+  // ===== Auction =====
+
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("SELECT a FROM Advertisement a WHERE a.id = :id")
+  Optional<Advertisement> findByIdWithLock(@Param("id") UUID id);
 }

@@ -1,6 +1,7 @@
 package com.mipt.advertisement.controller.dto;
 
 import lombok.Data;
+import java.time.Instant;
 import java.util.Set;
 
 @Data
@@ -10,4 +11,6 @@ public class AdvertisementPatchRequest {
     private Long price;
     private String category;
     private Set<String> photoUrls;
+    private Boolean isAuction;
+    private Instant auctionEndsAt;
 }

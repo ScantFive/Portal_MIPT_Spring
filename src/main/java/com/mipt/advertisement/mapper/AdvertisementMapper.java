@@ -50,6 +50,8 @@ public class AdvertisementMapper {
                 .price(request.getPrice())
                 .category(category)
                 .isFavorite(false)
+                .isAuction(request.isAuction())
+                .auctionEndsAt(request.getAuctionEndsAt())
                 .createdAt(Instant.now())
                 .build();
 
@@ -81,6 +83,9 @@ public class AdvertisementMapper {
                 .categoryDisplayName(advertisement.getCategoryDisplayName())
                 .isFavorite(advertisement.isFavorite())
                 .createdAt(advertisement.getCreatedAt())
+                .isAuction(advertisement.isAuction())
+                .auctionEndsAt(advertisement.getAuctionEndsAt())
+                .auctionClosedAt(advertisement.getAuctionClosedAt())
                 .build();
     }
 
@@ -106,6 +111,14 @@ public class AdvertisementMapper {
 
         if (patch.getPhotoUrls() != null) {
             existing.setPhotoUrls(patch.getPhotoUrls());
+        }
+
+        if (patch.getIsAuction() != null) {
+            existing.setAuction(patch.getIsAuction());
+        }
+
+        if (patch.getAuctionEndsAt() != null) {
+            existing.setAuctionEndsAt(patch.getAuctionEndsAt());
         }
     }
 }

@@ -45,6 +45,16 @@ public class Advertisement {
   @Column(name = "is_favorite")
   private boolean isFavorite;
 
+  @Column(name = "is_auction", nullable = false)
+  @Builder.Default
+  private boolean isAuction = false;
+
+  @Column(name = "auction_ends_at")
+  private Instant auctionEndsAt;
+
+  @Column(name = "auction_closed_at")
+  private Instant auctionClosedAt;
+
   @Column(name = "created_at", nullable = false)
   private Instant createdAt;
 
@@ -103,9 +113,30 @@ public class Advertisement {
 
   public void validateToPublish() {
     validateToCreate();
-    validatePrice();
     validateDescription();
     validatePhotoUrls();
+    if (isAuction) {
+      validateAuction();
+    } else {
+      validatePrice();
+    }
+  }
+
+  private void validateAuction() {
+    if (price == null || price <= 0) {
+      throw new IllegalArgumentException("Начальная ставка аукциона должна быть положительной");
+    }
+    if (auctionEndsAt == null) {
+      throw new IllegalArgumentException("Укажите дату окончания аукциона");
+    }
+    if (!auctionEndsAt.isAfter(Instant.now())) {
+      throw new IllegalArgumentException("Дата окончания аукциона должна быть в будущем");
+    }
+  }
+
+  public boolean isAuctionActive() {
+    return isAuction && auctionClosedAt == null
+        && (auctionEndsAt == null || auctionEndsAt.isAfter(Instant.now()));
   }
 
   private void validateCategory() {

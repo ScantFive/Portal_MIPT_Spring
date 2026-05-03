@@ -78,7 +78,9 @@ public class DatabaseConfig {
         "db-init/007_messages.sql",
         "db-init/008_favorites.sql",
         "db-init/009_favoritesTriggers.sql",
-        "db-init/010_search_history.sql"
+        "db-init/010_search_history.sql",
+        "db-init/011_reviews.sql",
+        "db-init/012_auctions.sql"
     };
 
     for (String script : scripts) {

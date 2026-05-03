@@ -1,7 +1,9 @@
 package com.mipt.advertisement.controller.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.mipt.advertisement.model.Type;
 import jakarta.validation.constraints.*;
+import java.time.Instant;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
@@ -30,4 +32,9 @@ public class AdvertisementRequest {
     private String category; // Можно передавать как displayName или enum name
 
     private Set<String> photoUrls = new TreeSet<>();
+
+    @JsonProperty("isAuction")
+    private boolean isAuction;
+
+    private Instant auctionEndsAt;
 }
