@@ -47,6 +47,13 @@ public class UserController {
     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
  }
 
+ @GetMapping("/by-telegram/{username}")
+ public ResponseEntity<String> getByTelegramUsername(@PathVariable String username) {
+  return userService.findByTelegramUsername(username)
+    .map(u -> ResponseEntity.ok(u.getUserID().toString()))
+    .orElse(ResponseEntity.notFound().build());
+ }
+
  @GetMapping("/by-email")
  public User getByEmail(@RequestParam String email) {
   return userService
@@ -64,6 +71,10 @@ public class UserController {
    throw new ResponseStatusException(HttpStatus.CONFLICT, "Пользователь с таким логином уже существует");
   }
   User user = new User(request.getLogin(), request.getEmail(), request.getPassword());
+  if (request.getTelegramUsername() != null && !request.getTelegramUsername().isBlank()) {
+   String tg = request.getTelegramUsername().strip();
+   user.setTelegramUsername(tg.startsWith("@") ? tg.substring(1) : tg);
+  }
   userService.save(user);
   return user;
  }
@@ -74,8 +85,41 @@ public class UserController {
    throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
   }
   user.setUserID(id);
+  if (user.getTelegramUsername() != null) {
+   String tg = user.getTelegramUsername().strip();
+   user.setTelegramUsername(tg.startsWith("@") ? tg.substring(1).toLowerCase() : tg.toLowerCase());
+   if (user.getTelegramUsername().isBlank()) user.setTelegramUsername(null);
+  }
   userService.update(user);
   return user;
+ }
+
+ @PostMapping("/{id}/telegram-chat")
+ public ResponseEntity<Void> saveTelegramChatId(@PathVariable UUID id, @RequestParam Long chatId) {
+  User user = userService.findById(id)
+    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+  user.setTelegramChatId(chatId);
+  userService.update(user);
+  return ResponseEntity.noContent().build();
+ }
+
+ @DeleteMapping("/{id}/telegram-chat")
+ public ResponseEntity<Void> removeTelegramChatId(@PathVariable UUID id) {
+  User user = userService.findById(id)
+    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+  user.setTelegramChatId(null);
+  userService.update(user);
+  return ResponseEntity.noContent().build();
+ }
+
+ @GetMapping("/{id}/telegram-chat")
+ public ResponseEntity<Long> getTelegramChatId(@PathVariable UUID id) {
+  User user = userService.findById(id)
+    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+  if (user.getTelegramChatId() == null) {
+   return ResponseEntity.notFound().build();
+  }
+  return ResponseEntity.ok(user.getTelegramChatId());
  }
 
  @GetMapping("/activate")

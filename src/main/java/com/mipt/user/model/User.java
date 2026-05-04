@@ -35,6 +35,12 @@ public class User implements Serializable {
   @Column(name = "activation_token")
   private String activationToken;
 
+  @Column(name = "telegram_username", unique = true, length = 100)
+  private String telegramUsername;
+
+  @Column(name = "telegram_chat_id", unique = true)
+  private Long telegramChatId;
+
   /**
    * Factory constructor for creating a new user with raw password.
    * This constructor generates a new UUID and hashes the password.

@@ -18,4 +18,6 @@ public class CreateUserRequest {
     @NotNull(message = "Введите пароль")
     @Size(min = 6, message = "Пароль слишком короткий")
     private String password;
+
+    private String telegramUsername;
 }

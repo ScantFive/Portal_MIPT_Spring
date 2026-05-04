@@ -62,6 +62,12 @@ public class UserService {
     return repository.findByLogin(login.toLowerCase().trim());
   }
 
+  public Optional<User> findByTelegramUsername(String telegramUsername) {
+    if (telegramUsername == null || telegramUsername.isBlank()) return Optional.empty();
+    String normalized = telegramUsername.startsWith("@") ? telegramUsername.substring(1) : telegramUsername;
+    return repository.findByTelegramUsername(normalized.toLowerCase().trim());
+  }
+
   public Optional<User> findById(UUID id) {
     return repository.findById(id);
   }

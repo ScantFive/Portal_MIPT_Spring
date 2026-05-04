@@ -18,4 +18,6 @@ public interface UserJpaRepository extends JpaRepository<User, UUID> {
   boolean existsByLogin(String login);
 
   Optional<User> findByActivationToken(String token);
+
+  Optional<User> findByTelegramUsername(String telegramUsername);
 }

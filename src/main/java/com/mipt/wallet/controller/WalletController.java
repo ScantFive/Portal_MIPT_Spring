@@ -1,11 +1,13 @@
 package com.mipt.wallet.controller;
 
 import com.mipt.wallet.controller.dto.OperationRequest;
+import com.mipt.wallet.event.WalletEvent;
 import com.mipt.wallet.model.Operation;
 import com.mipt.wallet.model.OperationType;
 import com.mipt.wallet.model.Wallet;
 import com.mipt.wallet.service.OperationDataService;
 import com.mipt.wallet.service.WalletDataService;
+import com.mipt.wallet.service.WalletKafkaEventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +27,7 @@ public class WalletController {
 
     private final WalletDataService walletDataService;
     private final OperationDataService operationDataService;
+    private final WalletKafkaEventPublisher eventPublisher;
 
     @GetMapping("/{userId}")
     @Transactional
@@ -78,7 +81,9 @@ public class WalletController {
                 .type(OperationType.RESERVE)
                 .title(req.getTitle())
                 .build();
-        return ResponseEntity.ok(operationDataService.create(op));
+        Operation created = operationDataService.create(op);
+        eventPublisher.publish(WalletEvent.operationCreated(created));
+        return ResponseEntity.ok(created);
     }
 
     @PostMapping("/operations/pay")
@@ -102,7 +107,11 @@ public class WalletController {
                 .type(OperationType.PAY)
                 .title(req.getTitle())
                 .build();
-        return ResponseEntity.ok(operationDataService.create(op));
+        Operation created = operationDataService.create(op);
+        // Уведомляем и покупателя (клиента) и продавца (performer)
+        eventPublisher.publish(WalletEvent.operationCreated(created));
+        eventPublisher.publish(WalletEvent.operationCreatedForPerformer(created));
+        return ResponseEntity.ok(created);
     }
 
     @PostMapping("/operations/cancel")
@@ -124,7 +133,9 @@ public class WalletController {
                 .type(OperationType.CANCEL)
                 .title(req.getTitle())
                 .build();
-        return ResponseEntity.ok(operationDataService.create(op));
+        Operation created = operationDataService.create(op);
+        eventPublisher.publish(WalletEvent.operationCreated(created));
+        return ResponseEntity.ok(created);
     }
 
     @PostMapping("/operations/refund")
@@ -148,7 +159,9 @@ public class WalletController {
                 .type(OperationType.REFUND)
                 .title(req.getTitle())
                 .build();
-        return ResponseEntity.ok(operationDataService.create(op));
+        Operation created = operationDataService.create(op);
+        eventPublisher.publish(WalletEvent.operationCreated(created));
+        return ResponseEntity.ok(created);
     }
 
     private Wallet getWalletOrThrow(UUID userId) {

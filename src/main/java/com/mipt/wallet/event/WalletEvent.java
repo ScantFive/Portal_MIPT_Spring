@@ -48,4 +48,20 @@ public class WalletEvent {
     .timestamp(Instant.now())
     .build();
  }
+
+ // Для PAY: уведомляем продавца (деньги получены)
+ public static WalletEvent operationCreatedForPerformer(Operation operation) {
+  return WalletEvent.builder()
+    .eventType("WALLET_OPERATION_CREATED")
+    .walletOwnerId(operation.getPerformerId())
+    .operationId(operation.getId())
+    .clientId(operation.getClientId())
+    .performerId(operation.getPerformerId())
+    .operationType(operation.getType() != null ? operation.getType().name() : null)
+    .amount(operation.getAmount())
+    .title(operation.getTitle())
+    .details("Wallet operation created")
+    .timestamp(Instant.now())
+    .build();
+ }
 }
