@@ -26,7 +26,7 @@ public class User implements Serializable {
   @Column(name = "email", nullable = false, unique = true, length = 255)
   private String email;
 
-  @Column(name = "hashed_password", nullable = false, length = 255)
+  @Column(name = "hashed_password", nullable = false)
   private String hashedPassword;
 
   @Column(name = "activated", nullable = false)
@@ -41,15 +41,12 @@ public class User implements Serializable {
   @Column(name = "telegram_chat_id", unique = true)
   private Long telegramChatId;
 
-  /**
-   * Factory constructor for creating a new user with raw password.
-   * This constructor generates a new UUID and hashes the password.
-   */
-  public User(String login, String email, String rawPassword) {
+
+  public User(String login, String email, String hashedPassword) {
     this.userID = UUID.randomUUID();
     this.login = login;
     this.email = email.toLowerCase().trim();
-    this.hashedPassword = PasswordHasher.hash(rawPassword);
+    this.hashedPassword = hashedPassword;
     this.activated = false;
   }
 

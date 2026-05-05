@@ -1,4 +1,4 @@
-package com.mipt.user.service;
+package com.mipt.user.service.dont_use;
 
 import com.mipt.user.model.User;
 

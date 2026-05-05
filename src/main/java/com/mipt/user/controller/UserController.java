@@ -8,6 +8,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,118 +26,136 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 public class UserController {
 
- private final UserService userService;
+    private final UserService userService;
+    private final PasswordEncoder passwordEncoder;
 
- @GetMapping
- public List<User> list() {
-  return userService.findAll();
- }
+    @GetMapping
+    public List<User> list() {
+        return userService.findAll();
+    }
 
- @GetMapping("/{id}")
- public User getById(@PathVariable UUID id) {
-  return userService
-    .findById(id)
-    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
- }
+    @GetMapping("/{id}")
+    public User getById(@PathVariable UUID id) {
+        return userService
+                .findById(id)
+                .orElseThrow(
+                        () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+    }
 
- @GetMapping("/{id}/email")
- public String getEmailById(@PathVariable UUID id) {
-  return userService
-    .findById(id)
-    .map(User::getEmail)
-    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
- }
+    @GetMapping("/{id}/email")
+    public String getEmailById(@PathVariable UUID id) {
+        return userService
+                .findById(id)
+                .map(User::getEmail)
+                .orElseThrow(
+                        () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+    }
 
- @GetMapping("/by-telegram/{username}")
- public ResponseEntity<String> getByTelegramUsername(@PathVariable String username) {
-  return userService.findByTelegramUsername(username)
-    .map(u -> ResponseEntity.ok(u.getUserID().toString()))
-    .orElse(ResponseEntity.notFound().build());
- }
+    @GetMapping("/by-telegram/{username}")
+    public ResponseEntity<String> getByTelegramUsername(@PathVariable String username) {
+        return userService.findByTelegramUsername(username)
+                .map(u -> ResponseEntity.ok(u.getUserID().toString()))
+                .orElse(ResponseEntity.notFound().build());
+    }
 
- @GetMapping("/by-email")
- public User getByEmail(@RequestParam String email) {
-  return userService
-    .findByEmail(email)
-    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
- }
+    @GetMapping("/by-email")
+    public User getByEmail(@RequestParam String email) {
+        return userService
+                .findByEmail(email)
+                .orElseThrow(
+                        () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+    }
 
- @PostMapping
- @ResponseStatus(HttpStatus.CREATED)
- public User create(@RequestBody CreateUserRequest request) {
-  if (userService.existsByEmail(request.getEmail())) {
-   throw new ResponseStatusException(HttpStatus.CONFLICT, "Пользователь с таким email уже существует");
-  }
-  if (userService.existsByLogin(request.getLogin())) {
-   throw new ResponseStatusException(HttpStatus.CONFLICT, "Пользователь с таким логином уже существует");
-  }
-  User user = new User(request.getLogin(), request.getEmail(), request.getPassword());
-  if (request.getTelegramUsername() != null && !request.getTelegramUsername().isBlank()) {
-   String tg = request.getTelegramUsername().strip();
-   user.setTelegramUsername(tg.startsWith("@") ? tg.substring(1) : tg);
-  }
-  userService.save(user);
-  return user;
- }
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public User create(@RequestBody CreateUserRequest request) {
+        if (userService.existsByEmail(request.getEmail())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Пользователь с таким email уже существует");
+        }
+        if (userService.existsByLogin(request.getLogin())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Пользователь с таким логином уже существует");
+        }
 
- @PutMapping("/{id}")
- public User update(@PathVariable UUID id, @RequestBody User user) {
-  if (userService.findById(id).isEmpty()) {
-   throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
-  }
-  user.setUserID(id);
-  if (user.getTelegramUsername() != null) {
-   String tg = user.getTelegramUsername().strip();
-   user.setTelegramUsername(tg.startsWith("@") ? tg.substring(1).toLowerCase() : tg.toLowerCase());
-   if (user.getTelegramUsername().isBlank()) user.setTelegramUsername(null);
-  }
-  userService.update(user);
-  return user;
- }
+        // Хешируем пароль при создании
+        String hashedPassword = passwordEncoder.encode(request.getPassword());
+        User user = new User(request.getLogin(), request.getEmail(), hashedPassword);
 
- @PostMapping("/{id}/telegram-chat")
- public ResponseEntity<Void> saveTelegramChatId(@PathVariable UUID id, @RequestParam Long chatId) {
-  User user = userService.findById(id)
-    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-  user.setTelegramChatId(chatId);
-  userService.update(user);
-  return ResponseEntity.noContent().build();
- }
+        if (request.getTelegramUsername() != null && !request.getTelegramUsername().isBlank()) {
+            String tg = request.getTelegramUsername().strip();
+            user.setTelegramUsername(tg.startsWith("@") ? tg.substring(1) : tg);
+        }
+        userService.save(user);
+        return user;
+    }
 
- @DeleteMapping("/{id}/telegram-chat")
- public ResponseEntity<Void> removeTelegramChatId(@PathVariable UUID id) {
-  User user = userService.findById(id)
-    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-  user.setTelegramChatId(null);
-  userService.update(user);
-  return ResponseEntity.noContent().build();
- }
+    @PutMapping("/{id}")
+    public User update(@PathVariable UUID id, @RequestBody User user) {
+        if (userService.findById(id).isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+        }
+        user.setUserID(id);
+        if (user.getTelegramUsername() != null) {
+            String tg = user.getTelegramUsername().strip();
+            user.setTelegramUsername(
+                    tg.startsWith("@") ? tg.substring(1).toLowerCase() : tg.toLowerCase());
+            if (user.getTelegramUsername().isBlank()) {
+                user.setTelegramUsername(null);
+            }
+        }
+        userService.update(user);
+        return user;
+    }
 
- @GetMapping("/{id}/telegram-chat")
- public ResponseEntity<Long> getTelegramChatId(@PathVariable UUID id) {
-  User user = userService.findById(id)
-    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-  if (user.getTelegramChatId() == null) {
-   return ResponseEntity.notFound().build();
-  }
-  return ResponseEntity.ok(user.getTelegramChatId());
- }
+    @PostMapping("/{id}/telegram-chat")
+    public ResponseEntity<Void> saveTelegramChatId(@PathVariable UUID id,
+            @RequestParam Long chatId) {
+        User user = userService.findById(id)
+                .orElseThrow(
+                        () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        user.setTelegramChatId(chatId);
+        userService.update(user);
+        return ResponseEntity.noContent().build();
+    }
 
- @GetMapping("/activate")
- public ResponseEntity<?> activate(@RequestParam String token) {
-  boolean ok = userService.activate(token);
-  if (ok) {
-   return ResponseEntity.ok(java.util.Map.of("message", "Аккаунт успешно активирован"));
-  }
-  throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Неверный или уже использованный токен активации");
- }
+    @DeleteMapping("/{id}/telegram-chat")
+    public ResponseEntity<Void> removeTelegramChatId(@PathVariable UUID id) {
+        User user = userService.findById(id)
+                .orElseThrow(
+                        () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        user.setTelegramChatId(null);
+        userService.update(user);
+        return ResponseEntity.noContent().build();
+    }
 
- @DeleteMapping("/{id}")
- @ResponseStatus(HttpStatus.NO_CONTENT)
- public void delete(@PathVariable UUID id) {
-  if (!userService.deleteById(id)) {
-   throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
-  }
- }
+    @GetMapping("/{id}/telegram-chat")
+    public ResponseEntity<Long> getTelegramChatId(@PathVariable UUID id) {
+        User user = userService.findById(id)
+                .orElseThrow(
+                        () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        if (user.getTelegramChatId() == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(user.getTelegramChatId());
+    }
+
+    @GetMapping("/activate")
+    public ResponseEntity<?> activate(@RequestParam String token) {
+        boolean ok = userService.activate(token);
+        if (ok) {
+            return ResponseEntity.ok(java.util.Map.of("message", "Аккаунт успешно активирован"));
+        }
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "Неверный или уже использованный токен активации");
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable UUID id) {
+        if (!userService.deleteById(id)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+        }
+    }
 
 }
