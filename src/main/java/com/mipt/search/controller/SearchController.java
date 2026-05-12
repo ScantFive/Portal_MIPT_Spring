@@ -9,14 +9,7 @@ import com.mipt.search.service.SearchService;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/search")
@@ -27,44 +20,43 @@ public class SearchController {
 
  @PostMapping
  public List<AdvertisementResponse> search(
-   @RequestBody(required = false) SearchQuery query,
-   @RequestParam(defaultValue = "50") long limit,
-   @RequestParam(defaultValue = "0") long offset,
-   @RequestParam(required = false) UUID userId) {
-  if (userId == null) {
-   return searchService.search(limit, offset, query);
-  }
+         @RequestBody(required = false) SearchQuery query,
+         @RequestParam(defaultValue = "50") long limit,
+         @RequestParam(defaultValue = "0") long offset,
+         @RequestHeader(value = "X-User-Id", required = false) UUID userId) { // Извлечение из заголовка
   return searchService.search(limit, offset, query, userId);
  }
 
  @GetMapping("/text")
  public List<AdvertisementResponse> searchByText(
-   @RequestParam String value,
-   @RequestParam(defaultValue = "50") long limit,
-   @RequestParam(defaultValue = "0") long offset) {
-  return searchService.searchByText(value, limit, offset);
+         @RequestParam String value,
+         @RequestParam(defaultValue = "50") long limit,
+         @RequestParam(defaultValue = "0") long offset,
+         @RequestHeader(value = "X-User-Id", required = false) UUID userId) { // Добавлен userId
+  return searchService.searchByText(value, limit, offset, userId);
  }
 
  @GetMapping("/type")
  public List<AdvertisementResponse> searchByType(
-   @RequestParam SearchType value,
-   @RequestParam(defaultValue = "50") long limit,
-   @RequestParam(defaultValue = "0") long offset) {
-  return searchService.searchByType(value, limit, offset);
+         @RequestParam SearchType value,
+         @RequestParam(defaultValue = "50") long limit,
+         @RequestParam(defaultValue = "0") long offset,
+         @RequestHeader(value = "X-User-Id", required = false) UUID userId) { // Добавлен userId
+  return searchService.searchByType(value, limit, offset, userId);
  }
 
  @GetMapping("/category")
  public List<AdvertisementResponse> searchByCategory(
-   @RequestParam String value,
-   @RequestParam(defaultValue = "50") long limit,
-   @RequestParam(defaultValue = "0") long offset) {
-  return searchService.searchByCategory(value, limit, offset);
+         @RequestParam String value,
+         @RequestParam(defaultValue = "50") long limit,
+         @RequestParam(defaultValue = "0") long offset,
+         @RequestHeader(value = "X-User-Id", required = false) UUID userId) { // Добавлен userId
+  return searchService.searchByCategory(value, limit, offset, userId);
  }
 
+ // Остальные методы (history, suggestions) остаются без изменений
  @GetMapping("/history")
- public List<SearchHistory> history(
-   @RequestParam UUID userId,
-   @RequestParam(defaultValue = "20") int limit) {
+ public List<SearchHistory> history(@RequestParam UUID userId, @RequestParam(defaultValue = "20") int limit) {
   return searchService.getUserSearchHistory(userId, limit);
  }
 
@@ -80,9 +72,9 @@ public class SearchController {
 
  @GetMapping("/suggestions")
  public List<SearchSuggestion> suggestions(
-   @RequestParam(required = false) String prefix,
-   @RequestParam(required = false) UUID userId,
-   @RequestParam(defaultValue = "10") int limit) {
+         @RequestParam(required = false) String prefix,
+         @RequestParam(required = false) UUID userId,
+         @RequestParam(defaultValue = "10") int limit) {
   return searchService.getSearchSuggestions(prefix, userId, limit);
  }
 }

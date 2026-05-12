@@ -20,7 +20,6 @@ public class AdvertisementMapper {
             throw new IllegalArgumentException("Request cannot be null");
         }
 
-        // Безопасное преобразование категории
         Category category = Category.fromNameSafe(request.getCategory());
         if (category == null) {
             throw new IllegalArgumentException(
@@ -32,7 +31,6 @@ public class AdvertisementMapper {
             );
         }
 
-        // Проверка соответствия типа и категории
         Type categoryType = Category.getTypeForCategory(category);
         if (categoryType != request.getType()) {
             throw new IllegalArgumentException(
@@ -49,13 +47,14 @@ public class AdvertisementMapper {
                 .description(request.getDescription())
                 .price(request.getPrice())
                 .category(category)
-                .isFavorite(false)
+                // Поле isFavorite (boolean) удалено из Advertisement.
+                // Вместо него используется favoritedByUsers (Set<UUID>).
+                .favoritedByUsers(new HashSet<>())
                 .isAuction(request.isAuction())
                 .auctionEndsAt(request.getAuctionEndsAt())
                 .createdAt(Instant.now())
                 .build();
 
-        // Устанавливаем фото
         if (request.getPhotoUrls() != null && !request.getPhotoUrls().isEmpty()) {
             advertisement.setPhotoUrls(new LinkedHashSet<>(request.getPhotoUrls()));
         }
@@ -63,7 +62,11 @@ public class AdvertisementMapper {
         return advertisement;
     }
 
-    public AdvertisementResponse toResponse(Advertisement advertisement) {
+    /**
+     * Преобразует сущность в DTO с учетом конкретного пользователя.
+     * @param userId ID пользователя, для которого проверяется статус "избранное".
+     */
+    public AdvertisementResponse toResponse(Advertisement advertisement, UUID userId) {
         if (advertisement == null) {
             return null;
         }
@@ -81,12 +84,20 @@ public class AdvertisementMapper {
                         advertisement.getPhotoUrls() : new LinkedHashSet<>())
                 .category(advertisement.getCategoryName())
                 .categoryDisplayName(advertisement.getCategoryDisplayName())
-                .isFavorite(advertisement.isFavorite())
+                // Вычисляем избранность: входит ли userId в список лайкнувших.[cite: 20]
+                .isFavorite(advertisement.isFavoritedBy(userId))
                 .createdAt(advertisement.getCreatedAt())
                 .isAuction(advertisement.isAuction())
                 .auctionEndsAt(advertisement.getAuctionEndsAt())
                 .auctionClosedAt(advertisement.getAuctionClosedAt())
                 .build();
+    }
+
+    /**
+     * Старый метод для обратной совместимости (например, если пользователь не авторизован).
+     */
+    public AdvertisementResponse toResponse(Advertisement advertisement) {
+        return toResponse(advertisement, null);
     }
 
     public void patchEntity(Advertisement existing, AdvertisementPatchRequest patch) {

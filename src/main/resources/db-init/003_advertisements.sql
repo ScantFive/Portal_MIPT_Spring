@@ -12,7 +12,6 @@ CREATE TABLE IF NOT EXISTS advertisements (
     name              TEXT        NOT NULL,
     price             BIGINT,
     description       TEXT,
-    is_favorite       BOOLEAN     NOT NULL DEFAULT FALSE,
     is_auction        BOOLEAN     NOT NULL DEFAULT FALSE,
     auction_ends_at   TIMESTAMPTZ,
     auction_closed_at TIMESTAMPTZ,
@@ -31,8 +30,6 @@ CREATE INDEX idx_advertisements_category       ON advertisements(category);
 CREATE INDEX idx_advertisements_created_at     ON advertisements(created_at);
 CREATE INDEX idx_advertisements_status_created ON advertisements(status, created_at DESC);
 CREATE INDEX idx_advertisements_price          ON advertisements(price) WHERE price IS NOT NULL;
-CREATE INDEX idx_advertisements_favorite       ON advertisements(is_favorite) WHERE is_favorite = TRUE;
-CREATE INDEX idx_advertisements_is_favorite    ON advertisements(is_favorite) WHERE is_favorite = TRUE;
 CREATE INDEX idx_advertisements_name           ON advertisements(name);
 
 ALTER TABLE advertisements ADD COLUMN search_vector tsvector

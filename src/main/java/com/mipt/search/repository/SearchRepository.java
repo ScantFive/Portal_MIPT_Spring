@@ -1,6 +1,7 @@
 package com.mipt.search.repository;
 
 import com.mipt.advertisement.controller.dto.AdvertisementResponse;
+import com.mipt.advertisement.mapper.AdvertisementMapper;
 import com.mipt.advertisement.model.Advertisement;
 import com.mipt.advertisement.repository.AdvertisementRepository;
 import com.mipt.mainpage.model.Favorite;
@@ -9,134 +10,137 @@ import com.mipt.search.model.SearchQuery;
 import com.mipt.search.model.SearchSortOrder;
 import com.mipt.search.model.SearchCategory;
 import com.mipt.util.SpringContext;
-import java.net.MalformedURLException;
-import java.net.URL;
+
 import java.util.*;
 import java.util.stream.Collectors;
 
-/** Репозиторий для поиска объявлений. */
+/**
+ * Репозиторий для поиска объявлений.
+ */
 public class SearchRepository {
 
-  private static final int DESCRIPTION_PREVIEW_LENGTH = 100;
-
-  private static AdvertisementRepository adRepository() {
-    return SpringContext.getBean(AdvertisementRepository.class);
-  }
-
-  private static FavoriteJpaRepository favoriteRepository() {
-    return SpringContext.getBean(FavoriteJpaRepository.class);
-  }
-
-  public static List<AdvertisementResponse> getAdverts(long limit, long offset, SearchQuery search) {
-    return getAdverts(limit, offset, search, null);
-  }
-
-  public static List<AdvertisementResponse> getAdverts(
-      long limit, long offset, SearchQuery search, UUID userId) {
-    SearchQuery effectiveSearch = Optional.ofNullable(search).orElseGet(SearchQuery::new);
-    Set<UUID> favoriteIds = userId == null
-        ? Collections.emptySet()
-        : favoriteRepository().findByUserId(userId).stream()
-            .map(Favorite::getAdvertisementId)
-            .collect(Collectors.toSet());
-
-    return adRepository().findAll().stream()
-        .filter(ad -> matchesSearch(ad, effectiveSearch))
-        .sorted(buildComparator(effectiveSearch.getSortOrder()))
-        .skip(offset)
-        .limit(limit)
-        .map(ad -> toAdvertisementResponse(ad, favoriteIds.contains(ad.getId())))
-        .collect(Collectors.toList());
-  }
-
-  /** Получить общее количество объявлений, соответствующих поисковому запросу */
-  public static long getAdvertsCount(SearchQuery search) {
-    SearchQuery effectiveSearch = Optional.ofNullable(search).orElseGet(SearchQuery::new);
-    return adRepository().findAll().stream().filter(ad -> matchesSearch(ad, effectiveSearch)).count();
-  }
-
-  /** Получить избранные объявления пользователя с возможностью фильтрации */
-  public static List<AdvertisementResponse> getFavoriteAdverts(
-      UUID userId, long limit, long offset, SearchQuery search) {
-    SearchQuery effectiveSearch = Optional.ofNullable(search).orElseGet(SearchQuery::new);
-    Set<UUID> favoriteIds = favoriteRepository().findByUserId(userId).stream()
-        .map(Favorite::getAdvertisementId)
-        .collect(Collectors.toSet());
-
-    return adRepository().findAllById(favoriteIds).stream()
-        .filter(ad -> matchesSearch(ad, effectiveSearch))
-        .sorted(buildComparator(effectiveSearch.getSortOrder()))
-        .skip(offset)
-        .limit(limit)
-        .map(ad -> toAdvertisementResponse(ad, true))
-        .collect(Collectors.toList());
-  }
-
-  private static boolean matchesSearch(Advertisement ad, SearchQuery query) {
-    if (query == null) {
-      return true;
+    private static AdvertisementMapper advertisementMapper() {
+        return SpringContext.getBean(AdvertisementMapper.class);
     }
 
-    if (query.getSearchText() != null && !query.getSearchText().isBlank()) {
-      String text = query.getSearchText().toLowerCase(Locale.ROOT);
-      String haystack = ((ad.getName() == null ? "" : ad.getName()) + " "
-          + (ad.getDescription() == null ? "" : ad.getDescription()) + " "
-          + (ad.getCategory() == null ? "" : ad.getCategory().getDisplayName()))
-          .toLowerCase(Locale.ROOT);
-      if (!haystack.contains(text)) {
-        return false;
-      }
+    private static AdvertisementRepository adRepository() {
+        return SpringContext.getBean(AdvertisementRepository.class);
     }
 
-    if (query.getType() != null && ad.getType() != null) {
-      if (!ad.getType().name().equals(query.getType().name())) {
-        return false;
-      }
+    private static FavoriteJpaRepository favoriteRepository() {
+        return SpringContext.getBean(FavoriteJpaRepository.class);
     }
 
-    if (query.getCategory() != null && !query.getCategory().isEmpty()) {
-      boolean categoryMatch = query.getCategory().stream()
-          .filter(SearchCategory::isActive)
-          .map(SearchCategory::getCategoryTitle)
-          .filter(Objects::nonNull)
-          .anyMatch(title -> ad.getCategory() != null
-              && ad.getCategory().getDisplayName().toLowerCase(Locale.ROOT)
-                  .contains(title.toLowerCase(Locale.ROOT)));
-      if (!categoryMatch) {
-        return false;
-      }
+    public static List<AdvertisementResponse> getAdverts(
+            long limit, long offset, SearchQuery search, UUID userId) {
+        SearchQuery effectiveSearch = Optional.ofNullable(search).orElseGet(SearchQuery::new);
+        return adRepository().findAll().stream()
+                .filter(ad -> matchesSearch(ad, effectiveSearch))
+                .sorted(buildComparator(effectiveSearch.getSortOrder()))
+                .skip(offset)
+                .limit(limit)
+                .map(ad -> advertisementMapper().toResponse(ad, userId))
+                .collect(Collectors.toList());
     }
 
-    return true;
-  }
+    /**
+     * Получить общее количество объявлений, соответствующих поисковому запросу
+     */
+    public static long getAdvertsCount(SearchQuery search) {
+        SearchQuery effectiveSearch = Optional.ofNullable(search).orElseGet(SearchQuery::new);
+        return adRepository().findAll().stream().filter(ad -> matchesSearch(ad, effectiveSearch))
+                .count();
+    }
 
-  private static Comparator<Advertisement> buildComparator(SearchSortOrder sortOrder) {
-    if (sortOrder == null || sortOrder == SearchSortOrder.NEWEST) {
-      return Comparator.comparing(Advertisement::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder()))
-          .reversed();
-    }
-    if (sortOrder == SearchSortOrder.OLDEST) {
-      return Comparator.comparing(Advertisement::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder()));
-    }
-    if (sortOrder == SearchSortOrder.CHEAPEST) {
-      return Comparator.comparing(Advertisement::getPrice, Comparator.nullsLast(Comparator.naturalOrder()));
-    }
-    return Comparator.comparing(Advertisement::getPrice, Comparator.nullsLast(Comparator.naturalOrder()))
-        .reversed();
-  }
+    /**
+     * Получить избранные объявления пользователя с возможностью фильтрации
+     */
+    public static List<AdvertisementResponse> getFavoriteAdverts(
+            UUID userId, long limit, long offset, SearchQuery search) {
+        SearchQuery effectiveSearch = Optional.ofNullable(search).orElseGet(SearchQuery::new);
+        Set<UUID> favoriteIds = favoriteRepository().findByUserId(userId).stream()
+                .map(Favorite::getAdvertisementId)
+                .collect(Collectors.toSet());
 
-  private static AdvertisementResponse toAdvertisementResponse(Advertisement ad, boolean isFavorite) {
-    return AdvertisementResponse.builder()
-            .id(ad.getId())
-            .type(ad.getType() != null ? ad.getType().name() : null)
-            .authorId(ad.getAuthorId())
-            .name(ad.getName()) // Теперь фронтенд увидит name!
-            .description(ad.getDescription())
-            .price(ad.getPrice())
-            .photoUrls(ad.getPhotoUrls())
-            .category(ad.getCategory() != null ? ad.getCategory().name() : null)
-            .isFavorite(isFavorite)
-            .createdAt(ad.getCreatedAt())
-            .build();
-  }
+        return adRepository().findAllById(favoriteIds).stream()
+                .filter(ad -> matchesSearch(ad, effectiveSearch))
+                .sorted(buildComparator(effectiveSearch.getSortOrder()))
+                .skip(offset)
+                .limit(limit)
+                .map(ad -> toAdvertisementResponse(ad, true))
+                .collect(Collectors.toList());
+    }
+
+    private static boolean matchesSearch(Advertisement ad, SearchQuery query) {
+        if (query == null) {
+            return true;
+        }
+
+        if (query.getSearchText() != null && !query.getSearchText().isBlank()) {
+            String text = query.getSearchText().toLowerCase(Locale.ROOT);
+            String haystack = ((ad.getName() == null ? "" : ad.getName()) + " "
+                    + (ad.getDescription() == null ? "" : ad.getDescription()) + " "
+                    + (ad.getCategory() == null ? "" : ad.getCategory().getDisplayName()))
+                    .toLowerCase(Locale.ROOT);
+            if (!haystack.contains(text)) {
+                return false;
+            }
+        }
+
+        if (query.getType() != null && ad.getType() != null) {
+            if (!ad.getType().name().equals(query.getType().name())) {
+                return false;
+            }
+        }
+
+        if (query.getCategory() != null && !query.getCategory().isEmpty()) {
+            boolean categoryMatch = query.getCategory().stream()
+                    .filter(SearchCategory::isActive)
+                    .map(SearchCategory::getCategoryTitle)
+                    .filter(Objects::nonNull)
+                    .anyMatch(title -> ad.getCategory() != null
+                            && ad.getCategory().getDisplayName().toLowerCase(Locale.ROOT)
+                            .contains(title.toLowerCase(Locale.ROOT)));
+            if (!categoryMatch) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static Comparator<Advertisement> buildComparator(SearchSortOrder sortOrder) {
+        if (sortOrder == null || sortOrder == SearchSortOrder.NEWEST) {
+            return Comparator.comparing(Advertisement::getCreatedAt,
+                            Comparator.nullsLast(Comparator.naturalOrder()))
+                    .reversed();
+        }
+        if (sortOrder == SearchSortOrder.OLDEST) {
+            return Comparator.comparing(Advertisement::getCreatedAt,
+                    Comparator.nullsLast(Comparator.naturalOrder()));
+        }
+        if (sortOrder == SearchSortOrder.CHEAPEST) {
+            return Comparator.comparing(Advertisement::getPrice,
+                    Comparator.nullsLast(Comparator.naturalOrder()));
+        }
+        return Comparator.comparing(Advertisement::getPrice,
+                        Comparator.nullsLast(Comparator.naturalOrder()))
+                .reversed();
+    }
+
+    private static AdvertisementResponse toAdvertisementResponse(Advertisement ad,
+            boolean isFavorite) {
+        return AdvertisementResponse.builder()
+                .id(ad.getId())
+                .type(ad.getType() != null ? ad.getType().name() : null)
+                .authorId(ad.getAuthorId())
+                .name(ad.getName()) // Теперь фронтенд увидит name!
+                .description(ad.getDescription())
+                .price(ad.getPrice())
+                .photoUrls(ad.getPhotoUrls())
+                .category(ad.getCategory() != null ? ad.getCategory().name() : null)
+                .isFavorite(isFavorite)
+                .createdAt(ad.getCreatedAt())
+                .build();
+    }
 }

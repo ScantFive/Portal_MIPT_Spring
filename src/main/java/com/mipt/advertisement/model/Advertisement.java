@@ -16,187 +16,205 @@ import java.util.*;
 @Builder
 public class Advertisement {
 
-  @Id
-  @GeneratedValue(strategy = GenerationType.UUID)
-  private UUID id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
-  @Enumerated(EnumType.STRING)
-  @Column(nullable = false)
-  private Type type;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Type type;
 
-  @Enumerated(EnumType.STRING)
-  @Column(nullable = false)
-  private AdvertisementStatus status;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private AdvertisementStatus status;
 
-  @Column(name = "author", nullable = false)
-  private UUID authorId;
+    @Column(name = "author", nullable = false)
+    private UUID authorId;
 
-  @Column(nullable = false, length = 255)
-  private String name;
+    @Column(nullable = false, length = 255)
+    private String name;
 
-  @Column(length = 5000)
-  private String description;
+    @Column(length = 5000)
+    private String description;
 
-  private Long price;
+    private Long price;
 
-  @Convert(converter = CategoryConverter.class)
-  private Category category;
+    @Convert(converter = CategoryConverter.class)
+    private Category category;
 
-  @Column(name = "is_favorite")
-  private boolean isFavorite;
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(
+            name = "advertisement_favorites",
+            joinColumns = @JoinColumn(name = "advertisement_id")
+    )
+    @Column(name = "user_id")
+    @Builder.Default
+    private Set<UUID> favoritedByUsers = new HashSet<>();
 
-  @Column(name = "is_auction", nullable = false)
-  @Builder.Default
-  private boolean isAuction = false;
+    @Column(name = "is_auction", nullable = false)
+    @Builder.Default
+    private boolean isAuction = false;
 
-  @Column(name = "auction_ends_at")
-  private Instant auctionEndsAt;
+    @Column(name = "auction_ends_at")
+    private Instant auctionEndsAt;
 
-  @Column(name = "auction_closed_at")
-  private Instant auctionClosedAt;
+    @Column(name = "auction_closed_at")
+    private Instant auctionClosedAt;
 
-  @Column(name = "created_at", nullable = false)
-  private Instant createdAt;
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt;
 
-  // Связь с фото
-  @OneToMany(mappedBy = "advertisement", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-  @OrderBy("displayOrder ASC")
-  @Builder.Default
-  private Set<AdvertisementPhoto> photos = new LinkedHashSet<>();
+    // Связь с фото
+    @OneToMany(mappedBy = "advertisement", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @OrderBy("displayOrder ASC")
+    @Builder.Default
+    private Set<AdvertisementPhoto> photos = new LinkedHashSet<>();
 
 
-  // Хелпер методы для работы с фото
-  public void addPhoto(String photoUrl) {
-    AdvertisementPhoto photo = AdvertisementPhoto.builder()
-            .advertisement(this)
-            .photoUrl(photoUrl)
-            .displayOrder(this.photos.size())
-            .build();
-    this.photos.add(photo);
-  }
-
-  public void removePhoto(String photoUrl) {
-    this.photos.removeIf(photo -> photo.getPhotoUrl().equals(photoUrl));
-    // Переупорядочиваем
-    int order = 0;
-    for (AdvertisementPhoto photo : this.photos) {
-      photo.setDisplayOrder(order++);
-    }
-  }
-
-  public Set<String> getPhotoUrls() {
-    return photos.stream()
-            .map(AdvertisementPhoto::getPhotoUrl)
-            .collect(Collectors.toCollection(LinkedHashSet::new));
-  }
-
-  public void setPhotoUrls(Set<String> photoUrls) {
-    this.photos.clear();
-    if (photoUrls != null) {
-      int order = 0;
-      for (String url : photoUrls) {
-        this.photos.add(AdvertisementPhoto.builder()
+    // Хелпер методы для работы с фото
+    public void addPhoto(String photoUrl) {
+        AdvertisementPhoto photo = AdvertisementPhoto.builder()
                 .advertisement(this)
-                .photoUrl(url)
-                .displayOrder(order++)
-                .build());
-      }
+                .photoUrl(photoUrl)
+                .displayOrder(this.photos.size())
+                .build();
+        this.photos.add(photo);
     }
-  }
 
-  // Валидация (оставляем без изменений)
-  public void validateToCreate() {
-    validateName();
-    validateType();
-    validateCategory();
-  }
+    public void removePhoto(String photoUrl) {
+        this.photos.removeIf(photo -> photo.getPhotoUrl().equals(photoUrl));
+        // Переупорядочиваем
+        int order = 0;
+        for (AdvertisementPhoto photo : this.photos) {
+            photo.setDisplayOrder(order++);
+        }
+    }
 
-  public void validateToPublish() {
-    validateToCreate();
-    validateDescription();
-    validatePhotoUrls();
-    if (isAuction) {
-      validateAuction();
-    } else {
-      validatePrice();
+    public Set<String> getPhotoUrls() {
+        return photos.stream()
+                .map(AdvertisementPhoto::getPhotoUrl)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
-  }
 
-  private void validateAuction() {
-    if (price == null || price <= 0) {
-      throw new IllegalArgumentException("Начальная ставка аукциона должна быть положительной");
+    public void setPhotoUrls(Set<String> photoUrls) {
+        this.photos.clear();
+        if (photoUrls != null) {
+            int order = 0;
+            for (String url : photoUrls) {
+                this.photos.add(AdvertisementPhoto.builder()
+                        .advertisement(this)
+                        .photoUrl(url)
+                        .displayOrder(order++)
+                        .build());
+            }
+        }
     }
-    if (auctionEndsAt == null) {
-      throw new IllegalArgumentException("Укажите дату окончания аукциона");
-    }
-    if (!auctionEndsAt.isAfter(Instant.now())) {
-      throw new IllegalArgumentException("Дата окончания аукциона должна быть в будущем");
-    }
-  }
 
-  public boolean isAuctionActive() {
-    return isAuction && auctionClosedAt == null
-        && (auctionEndsAt == null || auctionEndsAt.isAfter(Instant.now()));
-  }
-
-  private void validateCategory() {
-    if (category == null) {
-      throw new IllegalArgumentException("Категория обязательна для объявления");
+    // Валидация (оставляем без изменений)
+    public void validateToCreate() {
+        validateName();
+        validateType();
+        validateCategory();
     }
-    Type categoryType = Category.getTypeForCategory(category);
-    if (categoryType != null && categoryType != this.type) {
-      throw new IllegalArgumentException(
-              String.format("Категория '%s' не подходит для типа '%s'",
-                      category.getDisplayName(), type)
-      );
-    }
-  }
 
-  private void validateName() {
-    if (name == null || name.trim().isEmpty()) {
-      throw new IllegalArgumentException("Название объявления не может быть пустым");
+    public void validateToPublish() {
+        validateToCreate();
+        validateDescription();
+        validatePhotoUrls();
+        if (isAuction) {
+            validateAuction();
+        } else {
+            validatePrice();
+        }
     }
-    if (name.length() < 3 || name.length() > 250) {
-      throw new IllegalArgumentException("Название объявления должно быть от 3 до 255 символов");
+
+    private void validateAuction() {
+        if (price == null || price <= 0) {
+            throw new IllegalArgumentException(
+                    "Начальная ставка аукциона должна быть положительной");
+        }
+        if (auctionEndsAt == null) {
+            throw new IllegalArgumentException("Укажите дату окончания аукциона");
+        }
+        if (!auctionEndsAt.isAfter(Instant.now())) {
+            throw new IllegalArgumentException("Дата окончания аукциона должна быть в будущем");
+        }
     }
-  }
 
-  private void validateType() {
-    if (type == null) {
-      throw new IllegalArgumentException("Тип объявления не может быть пустым");
+    public boolean isAuctionActive() {
+        return isAuction && auctionClosedAt == null
+                && (auctionEndsAt == null || auctionEndsAt.isAfter(Instant.now()));
     }
-  }
 
-  private void validatePhotoUrls() {
-    if (getPhotoUrls().isEmpty()) {
-      throw new IllegalArgumentException("Добавьте хотя бы одно фото");
+    private void validateCategory() {
+        if (category == null) {
+            throw new IllegalArgumentException("Категория обязательна для объявления");
+        }
+        Type categoryType = Category.getTypeForCategory(category);
+        if (categoryType != null && categoryType != this.type) {
+            throw new IllegalArgumentException(
+                    String.format("Категория '%s' не подходит для типа '%s'",
+                            category.getDisplayName(), type)
+            );
+        }
     }
-  }
 
-  private void validateDescription() {
-    if (description != null && description.length() > 5000) {
-      throw new IllegalArgumentException("Описание не может превышать 5000 символов");
+    private void validateName() {
+        if (name == null || name.trim().isEmpty()) {
+            throw new IllegalArgumentException("Название объявления не может быть пустым");
+        }
+        if (name.length() < 3 || name.length() > 250) {
+            throw new IllegalArgumentException(
+                    "Название объявления должно быть от 3 до 255 символов");
+        }
     }
-  }
 
-  private void validatePrice() {
-    if (price == null) {
-      throw new IllegalArgumentException("Цена не может быть пустой");
+    private void validateType() {
+        if (type == null) {
+            throw new IllegalArgumentException("Тип объявления не может быть пустым");
+        }
     }
-    if (price <= 0) {
-      throw new IllegalArgumentException("Цена должна быть положительной");
+
+    private void validatePhotoUrls() {
+        if (getPhotoUrls().isEmpty()) {
+            throw new IllegalArgumentException("Добавьте хотя бы одно фото");
+        }
     }
-  }
 
-  public String getCategoryName() {
-    return category != null ? category.name() : null;
-  }
+    private void validateDescription() {
+        if (description != null && description.length() > 5000) {
+            throw new IllegalArgumentException("Описание не может превышать 5000 символов");
+        }
+    }
 
-  public String getCategoryDisplayName() {
-    return category != null ? category.getDisplayName() : null;
-  }
+    private void validatePrice() {
+        if (price == null) {
+            throw new IllegalArgumentException("Цена не может быть пустой");
+        }
+        if (price <= 0) {
+            throw new IllegalArgumentException("Цена должна быть положительной");
+        }
+    }
 
-  public void toggleFavorite() {
-    this.isFavorite = !this.isFavorite;
-  }
+    public String getCategoryName() {
+        return category != null ? category.name() : null;
+    }
+
+    public String getCategoryDisplayName() {
+        return category != null ? category.getDisplayName() : null;
+    }
+
+    public boolean toggleFavorite(UUID userId) {
+        if (favoritedByUsers.contains(userId)) {
+            favoritedByUsers.remove(userId);
+            return false;
+        } else {
+            favoritedByUsers.add(userId);
+            return true;
+        }
+    }
+
+    public boolean isFavoritedBy(UUID userId) {
+        return userId != null && favoritedByUsers.contains(userId);
+    }
 }

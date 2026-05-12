@@ -28,13 +28,9 @@ public class SearchServiceImpl implements SearchService {
   private final SearchKafkaEventPublisher eventPublisher;
 
   @Override
-  public List<AdvertisementResponse> search(long limit, long offset, SearchQuery query) {
-    return search(limit, offset, query, null);
-  }
-
-  @Override
   public List<AdvertisementResponse> search(long limit, long offset, SearchQuery query, UUID userId) {
     SearchQuery effectiveQuery = Optional.ofNullable(query).orElseGet(SearchQuery::new);
+    // Передаем userId в репозиторий для маппинга избранного
     List<AdvertisementResponse> adverts = SearchRepository.getAdverts(limit, offset, effectiveQuery, userId);
 
     if (userId != null && isSignificantQuery(effectiveQuery)) {
@@ -46,27 +42,27 @@ public class SearchServiceImpl implements SearchService {
   }
 
   @Override
-  public List<AdvertisementResponse> searchByText(String searchText, long limit, long offset) {
+  public List<AdvertisementResponse> searchByText(String searchText, long limit, long offset, UUID userId) {
     SearchQuery query = new SearchQuery();
     query.setSearchText(searchText);
-    return search(limit, offset, query);
+    return search(limit, offset, query, userId);
   }
 
   @Override
-  public List<AdvertisementResponse> searchByType(SearchType type, long limit, long offset) {
+  public List<AdvertisementResponse> searchByType(SearchType type, long limit, long offset, UUID userId) {
     SearchQuery query = new SearchQuery();
     query.setType(type);
-    return search(limit, offset, query);
+    return search(limit, offset, query, userId);
   }
 
   @Override
-  public List<AdvertisementResponse> searchByCategory(String categoryTitle, long limit, long offset) {
+  public List<AdvertisementResponse> searchByCategory(String categoryTitle, long limit, long offset, UUID userId) {
     SearchQuery query = new SearchQuery();
     com.mipt.search.model.SearchCategory category = new com.mipt.search.model.SearchCategory();
     category.setCategoryTitle(categoryTitle);
     category.setActive(true);
     query.setCategory(Collections.singletonList(category));
-    return search(limit, offset, query);
+    return search(limit, offset, query, userId);
   }
 
   @Override
@@ -85,6 +81,13 @@ public class SearchServiceImpl implements SearchService {
     return adverts;
   }
 
+  // Вспомогательный метод определения значимости запроса
+  private boolean isSignificantQuery(SearchQuery query) {
+    return (query.getSearchText() != null && !query.getSearchText().trim().isEmpty())
+                || query.getType() != null
+                || (query.getCategory() != null && !query.getCategory().isEmpty())
+                || (query.getFilters() != null && !query.getFilters().isEmpty());
+  }
   @Override
   public List<SearchHistory> getUserSearchHistory(UUID userId, int limit) {
     if (userId == null) {
@@ -199,12 +202,5 @@ public class SearchServiceImpl implements SearchService {
       return Collections.emptyList();
     }
     return SearchSuggestionRepository.getPersonalizedSuggestions(userId, prefix, limit);
-  }
-
-  private boolean isSignificantQuery(SearchQuery query) {
-    return (query.getSearchText() != null && !query.getSearchText().trim().isEmpty())
-        || query.getType() != null
-        || (query.getCategory() != null && !query.getCategory().isEmpty())
-        || (query.getFilters() != null && !query.getFilters().isEmpty());
   }
 }

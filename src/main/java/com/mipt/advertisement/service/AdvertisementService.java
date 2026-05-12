@@ -57,77 +57,60 @@ public class AdvertisementService {
   }
 
   @Transactional(readOnly = true)
-  public List<AdvertisementResponse> getAllAdvertisements() {
+  public List<AdvertisementResponse> getAllAdvertisements(UUID userId) { // Добавили userId
     log.debug("Getting all advertisements");
-
     List<Advertisement> advertisements = advertisementRepository.findAllByOrderByCreatedAtDesc();
-
     advertisements.forEach(ad -> ad.getPhotos().size());
 
     return advertisements.stream()
-            .map(advertisementMapper::toResponse)
+            .map(ad -> advertisementMapper.toResponse(ad, userId)) // Передаем userId
             .collect(Collectors.toList());
   }
 
   @Transactional(readOnly = true)
-  public List<AdvertisementResponse> getAdvertisementsByAuthor(UUID authorId) {
+  public List<AdvertisementResponse> getAdvertisementsByAuthor(UUID authorId, UUID userId) {
     log.debug("Getting advertisements by author: {}", authorId);
-
     List<Advertisement> advertisements = advertisementRepository.findByAuthorId(authorId);
     advertisements.forEach(ad -> ad.getPhotos().size());
     return advertisements.stream()
-            .map(advertisementMapper::toResponse)
+            .map(ad -> advertisementMapper.toResponse(ad, userId))
             .collect(Collectors.toList());
   }
 
   @Transactional(readOnly = true)
-  public List<AdvertisementResponse> getAdvertisementsByStatus(AdvertisementStatus status) {
+  public List<AdvertisementResponse> getAdvertisementsByStatus(AdvertisementStatus status, UUID userId) {
     log.debug("Getting advertisements by status: {}", status);
-
     List<Advertisement> advertisements = advertisementRepository.findByStatus(status);
     advertisements.forEach(ad -> ad.getPhotos().size());
     return advertisements.stream()
-            .map(advertisementMapper::toResponse)
+            .map(ad -> advertisementMapper.toResponse(ad, userId))
             .collect(Collectors.toList());
   }
 
   @Transactional(readOnly = true)
-  public List<AdvertisementResponse> getAdvertisementsByCategory(String categoryName) {
+  public List<AdvertisementResponse> getAdvertisementsByCategory(String categoryName, UUID userId) {
     log.debug("Getting advertisements by category: {}", categoryName);
-
     Category category = Category.fromNameSafe(categoryName);
     if (category == null) {
       throw new IllegalArgumentException("Invalid category: " + categoryName);
     }
-
     List<Advertisement> advertisements = advertisementRepository.findByCategory(category);
     advertisements.forEach(ad -> ad.getPhotos().size());
     return advertisements.stream()
-            .map(advertisementMapper::toResponse)
+            .map(ad -> advertisementMapper.toResponse(ad, userId))
             .collect(Collectors.toList());
   }
 
   @Transactional(readOnly = true)
-  public List<AdvertisementResponse> getAdvertisementsByType(Type type) {
+  public List<AdvertisementResponse> getAdvertisementsByType(Type type, UUID userId) {
     log.debug("Getting advertisements by type: {}", type);
-
     List<Advertisement> advertisements = advertisementRepository.findByType(type);
     advertisements.forEach(ad -> ad.getPhotos().size());
     return advertisements.stream()
-            .map(advertisementMapper::toResponse)
+            .map(ad -> advertisementMapper.toResponse(ad, userId))
             .collect(Collectors.toList());
   }
 
-  @Transactional(readOnly = true)
-  public List<AdvertisementResponse> getFavoriteAdvertisements() {
-    log.debug("Getting favorite advertisements");
-
-    List<Advertisement> advertisements = advertisementRepository.findByIsFavoriteTrue();
-    advertisements.forEach(ad -> ad.getPhotos().size());
-    return advertisements.stream()
-            .map(advertisementMapper::toResponse)
-            .collect(Collectors.toList());
-  }
 
   @Transactional
   public AdvertisementResponse updateAdvertisement(UUID id, AdvertisementRequest request) {
@@ -288,34 +271,34 @@ public class AdvertisementService {
     return getAdvertisement(id);
   }
 
-  @Transactional
-  public AdvertisementResponse setFavorite(UUID id, boolean favorite) {
-    log.debug("Setting favorite={} for advertisement: {}", favorite, id);
+  @Transactional(readOnly = true)
+  public List<AdvertisementResponse> getFavoriteAdvertisements(UUID userId) {
+    log.debug("Getting favorite advertisements for user: {}", userId);
 
-    Advertisement advertisement = advertisementRepository.findById(id)
-            .orElseThrow(() -> new AdvertisementNotFoundException(id));
+    List<Advertisement> advertisements = advertisementRepository.findByFavoritedByUsersContaining(userId);
+    advertisements.forEach(ad -> ad.getPhotos().size());
 
-    advertisement.setFavorite(favorite);
-    Advertisement updated = advertisementRepository.save(advertisement);
-    eventPublisher.publishEvent(AdvertisementEvent.favoriteToggled(
-            id, advertisement.getName(), advertisement.getAuthorId(), favorite));
-    return advertisementMapper.toResponse(updated);
+    // ВАЖНО: Вашему мапперу теперь нужен userId, чтобы правильно выставить boolean isFavorite в DTO
+    return advertisements.stream()
+            .map(ad -> advertisementMapper.toResponse(ad, userId)) // Обновите маппер!
+            .collect(Collectors.toList());
   }
 
   @Transactional
-  public AdvertisementResponse toggleFavorite(UUID id) {
-    log.debug("Toggling favorite for advertisement: {}", id);
+  public AdvertisementResponse toggleFavorite(UUID id, UUID userId) {
+    log.debug("Toggling favorite for advertisement: {} by user: {}", id, userId);
+
     Advertisement advertisement = advertisementRepository.findById(id)
             .orElseThrow(() -> new AdvertisementNotFoundException(id));
 
-    int updated = advertisementRepository.toggleFavorite(id);
-    if (updated == 0) {
-      throw new AdvertisementNotFoundException(id);
-    }
+    boolean isNowFavorite = advertisement.toggleFavorite(userId);
+
+    Advertisement updated = advertisementRepository.save(advertisement);
+
     eventPublisher.publishEvent(AdvertisementEvent.favoriteToggled(
-            id, advertisement.getName(), advertisement.getAuthorId(),
-            advertisement.isFavorite()));
-    return getAdvertisement(id);
+            id, advertisement.getName(), advertisement.getAuthorId(), isNowFavorite));
+
+    return advertisementMapper.toResponse(updated, userId);
   }
 
   public List<Category> getAllCategories() {

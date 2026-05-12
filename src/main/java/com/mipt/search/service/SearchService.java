@@ -10,39 +10,23 @@ import java.util.UUID;
 
 public interface SearchService {
 
-  List<AdvertisementResponse> search(long limit, long offset, SearchQuery query);
-
   List<AdvertisementResponse> search(long limit, long offset, SearchQuery query, UUID userId);
 
-  List<AdvertisementResponse> searchByText(String searchText, long limit, long offset);
+  // Методы с поддержкой userId для корректного отображения "избранного"
+  List<AdvertisementResponse> searchByText(String searchText, long limit, long offset, UUID userId);
 
-  List<AdvertisementResponse> searchByType(SearchType type, long limit, long offset);
+  List<AdvertisementResponse> searchByType(SearchType type, long limit, long offset, UUID userId);
 
-  List<AdvertisementResponse> searchByCategory(String categoryTitle, long limit, long offset);
+  List<AdvertisementResponse> searchByCategory(String categoryTitle, long limit, long offset, UUID userId);
 
   List<AdvertisementResponse> searchFavorites(UUID userId, SearchQuery query, long limit, long offset);
 
-  // Методы работы с историей поиска
+  // Методы работы с историей и подсказками остаются прежними
   List<SearchHistory> getUserSearchHistory(UUID userId, int limit);
-
   List<String> getRecentSearchTexts(UUID userId, int limit);
-
   List<SearchHistory> getPopularSearches(UUID userId, int limit);
-
   void clearUserSearchHistory(UUID userId);
-
   void deleteSearchHistoryEntry(UUID historyId, UUID userId);
-
-  // Методы работы с контекстными подсказками
-
-  /**
-   * Получает контекстные подсказки для поиска
-   *
-   * @param prefix Префикс для фильтрации подсказок
-   * @param userId ID пользователя (может быть null для неавторизованных)
-   * @param limit Максимальное количество подсказок
-   * @return Список подсказок, отсортированный по релевантности
-   */
   List<SearchSuggestion> getSearchSuggestions(String prefix, UUID userId, int limit);
 
   /**

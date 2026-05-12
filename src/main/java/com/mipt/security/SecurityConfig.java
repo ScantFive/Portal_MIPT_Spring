@@ -43,10 +43,6 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/users/by-email").permitAll()
                         .requestMatchers(HttpMethod.GET, "/users/by-login/**").permitAll()
 
-                        // Публичный просмотр контента
-                        .requestMatchers(HttpMethod.GET, "/v1/advertisements/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/search/**").permitAll()
-
                         // Все остальные запросы требуют JWT токен
                         .anyRequest().authenticated()
                 )
@@ -62,7 +58,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         // Разрешаем адрес вашего фронтенда
-        configuration.setAllowedOrigins(List.of("http://localhost:3001"));
+        configuration.setAllowedOrigins(List.of("http://localhost:3000"));
         // Разрешаем все стандартные методы[cite: 19]
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         // Разрешаем заголовок Authorization для передачи JWT и Content-Type для JSON[cite: 19]

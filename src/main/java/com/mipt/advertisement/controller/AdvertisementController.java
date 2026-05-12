@@ -48,7 +48,8 @@ public class AdvertisementController {
             @RequestParam(required = false) AdvertisementStatus status,
             @RequestParam(required = false) String category,
             @RequestParam(required = false) Type type,
-            @RequestParam(required = false) Boolean favorite) {
+            @RequestParam(required = false) Boolean favorite,
+            @RequestHeader(value = "X-User-Id", required = false) UUID userId) {
 
         log.info(
                 "GET /api/v1/advertisements with filters - authorId: {}, status: {}, category: {}, type: {}, favorite: {}",
@@ -57,17 +58,17 @@ public class AdvertisementController {
         List<AdvertisementResponse> responses;
 
         if (authorId != null) {
-            responses = advertisementService.getAdvertisementsByAuthor(authorId);
+            responses = advertisementService.getAdvertisementsByAuthor(authorId, userId);
         } else if (status != null) {
-            responses = advertisementService.getAdvertisementsByStatus(status);
+            responses = advertisementService.getAdvertisementsByStatus(status, userId);
         } else if (category != null) {
-            responses = advertisementService.getAdvertisementsByCategory(category);
+            responses = advertisementService.getAdvertisementsByCategory(category, userId);
         } else if (type != null) {
-            responses = advertisementService.getAdvertisementsByType(type);
-        } else if (favorite != null && favorite) {
-            responses = advertisementService.getFavoriteAdvertisements();
+            responses = advertisementService.getAdvertisementsByType(type, userId);
+        } else if (favorite != null && favorite && userId != null) {
+            responses = advertisementService.getFavoriteAdvertisements(userId);
         } else {
-            responses = advertisementService.getAllAdvertisements();
+            responses = advertisementService.getAllAdvertisements(userId);
         }
 
         return ResponseEntity.ok(responses);
@@ -139,19 +140,12 @@ public class AdvertisementController {
         return ResponseEntity.ok(response);
     }
 
-    @PatchMapping("/{id}/favorite")
-    public ResponseEntity<AdvertisementResponse> setFavorite(
-            @PathVariable UUID id,
-            @RequestParam boolean favorite) {
-        log.info("PATCH /api/v1/advertisements/{}/favorite - favorite: {}", id, favorite);
-        AdvertisementResponse response = advertisementService.setFavorite(id, favorite);
-        return ResponseEntity.ok(response);
-    }
-
     @PostMapping("/{id}/favorite/toggle")
-    public ResponseEntity<AdvertisementResponse> toggleFavorite(@PathVariable UUID id) {
-        log.info("POST /api/v1/advertisements/{}/favorite/toggle", id);
-        AdvertisementResponse response = advertisementService.toggleFavorite(id);
+    public ResponseEntity<AdvertisementResponse> toggleFavorite(
+            @PathVariable UUID id,
+            @RequestHeader("X-User-Id") UUID userId) {
+        log.info("POST /api/v1/advertisements/{}/favorite/toggle by user {}", id, userId);
+        AdvertisementResponse response = advertisementService.toggleFavorite(id, userId);
         return ResponseEntity.ok(response);
     }
 
