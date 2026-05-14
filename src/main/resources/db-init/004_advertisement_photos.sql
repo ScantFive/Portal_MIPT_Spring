@@ -34,7 +34,7 @@ INSERT INTO advertisement_photos (advertisement_id, photo_url, display_order) VA
 
 -- Keychron K2 Pro
 INSERT INTO advertisement_photos (advertisement_id, photo_url, display_order) VALUES
-  ('e4444444-4444-4444-4444-444444444444'::uuid, 'https://images.unsplash.com/photo-1595225476474-63036a41e140?w=800&h=600&fit=crop&auto=format', 0),
+  ('e4444444-4444-4444-4444-444444444444'::uuid, 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=800&h=600&fit=crop&auto=format', 0),
   ('e4444444-4444-4444-4444-444444444444'::uuid, 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=800&h=600&fit=crop&auto=format', 1);
 
 -- iPad Air 5 (аукцион)
@@ -44,7 +44,7 @@ INSERT INTO advertisement_photos (advertisement_id, photo_url, display_order) VA
 
 -- Электросамокат Xiaomi
 INSERT INTO advertisement_photos (advertisement_id, photo_url, display_order) VALUES
-  ('e6666666-6666-6666-6666-666666666666'::uuid, 'https://images.unsplash.com/photo-1601758125870-7e1c1c7d0e65?w=800&h=600&fit=crop&auto=format', 0),
+  ('e6666666-6666-6666-6666-666666666666'::uuid, 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&h=600&fit=crop&auto=format', 0),
   ('e6666666-6666-6666-6666-666666666666'::uuid, 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&h=600&fit=crop&auto=format', 1);
 
 -- Велосипед Stels
@@ -74,7 +74,7 @@ INSERT INTO advertisement_photos (advertisement_id, photo_url, display_order) VA
 
 -- Nintendo Switch OLED
 INSERT INTO advertisement_photos (advertisement_id, photo_url, display_order) VALUES
-  ('ea333333-3333-3333-3333-333333333333'::uuid, 'https://images.unsplash.com/photo-1589466342027-08e7bf2b1a67?w=800&h=600&fit=crop&auto=format', 0),
+  ('ea333333-3333-3333-3333-333333333333'::uuid, 'https://images.unsplash.com/photo-1594652634010-275456c808d0?w=800&h=600&fit=crop&auto=format', 0),
   ('ea333333-3333-3333-3333-333333333333'::uuid, 'https://images.unsplash.com/photo-1594652634010-275456c808d0?w=800&h=600&fit=crop&auto=format', 1);
 
 -- Репетитор по математике (услуга)
