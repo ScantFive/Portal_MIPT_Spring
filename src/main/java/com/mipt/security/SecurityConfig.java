@@ -35,17 +35,38 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
+                        // Статические ресурсы фронтенда
+                        .requestMatchers("/", "/index.html", "/assets/**", "/*.svg", "/*.ico", "/*.js", "/*.css").permitAll()
+
+                        // SPA-маршруты React Router
+                        .requestMatchers("/login", "/register", "/activation-pending", "/activate",
+                                "/catalog", "/listing/**", "/deals", "/messages", "/profile", "/wallet").permitAll()
+
                         // Публичные эндпоинты для авторизации и регистрации
                         .requestMatchers("/users/authenticate/**", "/users/activate").permitAll()
                         .requestMatchers(HttpMethod.POST, "/users").permitAll()
 
-                        // РАЗРЕШАЕМ ПОИСК ПО EMAIL И ЛОГИНУ ДЛЯ ПРОЦЕССА ВХОДА[cite: 17, 18]
+                        // Поиск по email и логину для процесса входа
                         .requestMatchers(HttpMethod.GET, "/users/by-email").permitAll()
                         .requestMatchers(HttpMethod.GET, "/users/by-login/**").permitAll()
+<<<<<<< HEAD
                         .requestMatchers("/users/by-telegram/**").permitAll()
                         .requestMatchers("/users/{id}/telegram-chat").permitAll()
                         .requestMatchers(("/users/by-email")).permitAll()
                         .requestMatchers("/users/{id}/email").permitAll()
+=======
+
+                        // Внутренние вызовы notification-сервиса (без JWT)
+                        .requestMatchers(HttpMethod.GET, "/users/by-telegram/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/users/*/telegram-chat").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/users/*/telegram-chat").permitAll()
+                        .requestMatchers(HttpMethod.DELETE, "/users/*/telegram-chat").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/users/*/email").permitAll()
+
+                        // Публичный просмотр контента
+                        .requestMatchers(HttpMethod.GET, "/v1/advertisements/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/search/**").permitAll()
+>>>>>>> 9181b64 (fix: Spring Security blocking api requests)
 
                         // Все остальные запросы требуют JWT токен
                         .anyRequest().authenticated()
