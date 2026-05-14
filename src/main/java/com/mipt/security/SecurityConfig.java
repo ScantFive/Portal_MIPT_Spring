@@ -42,6 +42,10 @@ public class SecurityConfig {
                         // РАЗРЕШАЕМ ПОИСК ПО EMAIL И ЛОГИНУ ДЛЯ ПРОЦЕССА ВХОДА[cite: 17, 18]
                         .requestMatchers(HttpMethod.GET, "/users/by-email").permitAll()
                         .requestMatchers(HttpMethod.GET, "/users/by-login/**").permitAll()
+                        .requestMatchers("/users/by-telegram/**").permitAll()
+                        .requestMatchers("/users/{id}/telegram-chat").permitAll()
+                        .requestMatchers(("/users/by-email")).permitAll()
+                        .requestMatchers("/users/{id}/email").permitAll()
 
                         // Все остальные запросы требуют JWT токен
                         .anyRequest().authenticated()
